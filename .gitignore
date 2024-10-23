@@ -1,2 +1,4 @@
 /Testpläne/
 /config.yaml
+**/__pycache__
+.vscode

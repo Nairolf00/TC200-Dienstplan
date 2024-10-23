@@ -24,17 +24,6 @@ except:
     
     with open("config.yaml", 'w') as configFile:
         yaml.dump(config, configFile)
-        
-
-print(config)
-
-
-# Der Name, nachdem im Dienstplan gesucht wird
-eigenerName = "Limmer , Florian"
-
-mailUrl = ""
-mailUsername = ""
-mailPassword = ""
 
 
 
@@ -127,13 +116,13 @@ with pandas.option_context('display.max_rows', None, 'display.max_columns', None
 
 
 # Sucht die eigene Zeile
-rowFlorian = contentTableFirst.loc[contentTableFirst.iloc[:, 0] == eigenerName]
+rowFlorian = contentTableFirst.loc[contentTableFirst.iloc[:, 0] == config["eigenerName"]]
 print("meine Zeile:\n", rowFlorian)
 
 
 
 
-with caldav.DAVClient(url=mailUrl, username=mailUsername, password=mailPassword) as client:
+with caldav.DAVClient(url=config["calDav"]["URL"], username=config["calDav"]["Username"], password=config["calDav"]["Password"]) as client:
     my_principal = client.principal()
     calendars = my_principal.calendars()
     calendar = client.calendar(url="https://dav.mailbusiness.ionos.de/caldav/Y2FsOi8vMC8xNDc")
