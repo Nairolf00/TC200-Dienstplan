@@ -7,76 +7,90 @@ import numpy
 
 import caldav
 import datetime
+import icalendar as iCal
 
 import traceback
 
+version = "0.1"
 
+# Importiert die Einstellungen und fragt sie ab, falls die Datei nicht existiert
 try:
     with open("config.yaml", 'r') as configFile:
         config = yaml.safe_load(configFile)
-except:
+        configFile.close()
+except FileNotFoundError:
     config = {}
     config["eigenerName"] = input("Eigener Name, exakt wie er im Dinestplan angezeigt wird: ")
-    config["calDav"] = {}
-    config["calDav"]["URL"]= input("CalDav URL: ")
-    config["calDav"]["Username"] = input("CalDav / Mailaccount Username: ")
-    config["calDav"]["Password"] = input("CalDav / Mailaccount Passwort: ")
+    if input("Modus? iCal Datei oder WebDav (i/w): ") == "i":
+        config["webDav"] = False
+        config["calDav"] = {}
+        config["calDav"]["URL"] = None
+        config["calDav"]["Username"] = None
+        config["calDav"]["Password"] = None
+        config["CalendarURL"] = None
+    else:
+        config["webDav"] = True
+        config["calDav"] = {}
+        config["calDav"]["URL"]= input("CalDav URL: ")
+        config["calDav"]["Username"] = input("CalDav / Mailaccount Username: ")
+        config["calDav"]["Password"] = input("CalDav / Mailaccount Passwort: ")
+        config["CalendarURL"] = input("URL zu dem einen spezifischen Kalender (!Alle Termine in den entsprechendne Monaten werden gelöscht!): ")
     
     with open("config.yaml", 'w') as configFile:
         yaml.dump(config, configFile)
-
+        configFile.close()
 
 
 # Schichten die mit "frei ()"" angezeit werden
 freiSchichten = ["X", "UT"]
 
+class iCalCreator:
+    def getCalendar():
+        # Timezone ist CopyPaste aus einem KalenderExport von Thunderbird
+        cal = iCal.Calendar()
+        cal.add('prodid', '-//Flos Scripte/TC 200 Dienstpläne/V'+version)
+        cal.add('version', '2.0')
+        return cal
+       
+    def getEventFullDays(name: str, starttime: datetime.datetime, endtime: datetime.datetime, comment: str = ""):
+        endtime = endtime + datetime.timedelta(days=1)
+        event = iCal.Event()
+        event['uid'] = "Skript-Dienstplaneintrag-" + starttime.strftime("%Y-%m-%d")
+        event.add('dtstart', starttime.date())
+        event.add('dtend', endtime.date())
+        event.add('summary', name)
+        event.add('description', comment)
+        return event
 
-# Timezone ist CopyPaste aus einem KalenderExport von Thunderbird
-caldavTimezoneStr = 'BEGIN:VTIMEZONE\nTZID:Europe/Berlin\nX-TZINFO:Europe/Berlin[2024a]\nBEGIN:STANDARD\nTZOFFSETTO:+010000\nTZOFFSETFROM:+005328\nTZNAME:Europe/Berlin(STD)\nDTSTART:18930401T000000\nRDATE:18930401T000000\nEND:STANDARD\nBEGIN:DAYLIGHT\nTZOFFSETTO:+020000\nTZOFFSETFROM:+010000\nTZNAME:Europe/Berlin(DST)\nDTSTART:19160430T230000\nRDATE:19160430T230000\nEND:DAYLIGHT\nBEGIN:STANDARD\nTZOFFSETTO:+010000\nTZOFFSETFROM:+020000\nTZNAME:Europe/Berlin(STD)\nDTSTART:19161001T010000\nRDATE:19161001T010000\nEND:STANDARD\nBEGIN:DAYLIGHT\nTZOFFSETTO:+020000\nTZOFFSETFROM:+010000\nTZNAME:Europe/Berlin(DST)\nDTSTART:19170416T020000\nRRULE:FREQ=YEARLY;BYMONTH=4;BYDAY=3MO;UNTIL=19180415T020000\nEND:DAYLIGHT\nBEGIN:STANDARD\nTZOFFSETTO:+010000\nTZOFFSETFROM:+020000\nTZNAME:Europe/Berlin(STD)\nDTSTART:19170917T030000\nRRULE:FREQ=YEARLY;BYMONTH=9;BYDAY=3MO;UNTIL=19180916T030000\nEND:STANDARD\nBEGIN:DAYLIGHT\nTZOFFSETTO:+020000\nTZOFFSETFROM:+010000\nTZNAME:Europe/Berlin(DST)\nDTSTART:19400401T020000\nRDATE:19400401T020000\nEND:DAYLIGHT\nBEGIN:STANDARD\nTZOFFSETTO:+010000\nTZOFFSETFROM:+020000\nTZNAME:Europe/Berlin(STD)\nDTSTART:19421102T030000\nRDATE:19421102T030000\nEND:STANDARD\nBEGIN:DAYLIGHT\nTZOFFSETTO:+020000\nTZOFFSETFROM:+010000\nTZNAME:Europe/Berlin(DST)\nDTSTART:19430329T020000\nRDATE:19430329T020000\nEND:DAYLIGHT\nBEGIN:DAYLIGHT\nTZOFFSETTO:+020000\nTZOFFSETFROM:+010000\nTZNAME:Europe/Berlin(DST)\nDTSTART:19440403T020000\nRRULE:FREQ=YEARLY;BYMONTH=4;BYDAY=1MO;UNTIL=19450402T020000\nEND:DAYLIGHT\nBEGIN:DAYLIGHT\nTZOFFSETTO:+030000\nTZOFFSETFROM:+020000\nTZNAME:Europe/Berlin(DST)\nDTSTART:19450524T020000\nRDATE:19450524T020000\nEND:DAYLIGHT\nBEGIN:STANDARD\nTZOFFSETTO:+010000\nTZOFFSETFROM:+020000\nTZNAME:Europe/Berlin(STD)\nDTSTART:19431004T030000\nRRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=1MO;UNTIL=19441002T030000\nEND:STANDARD\nBEGIN:DAYLIGHT\nTZOFFSETTO:+020000\nTZOFFSETFROM:+030000\nTZNAME:Europe/Berlin(DST)\nDTSTART:19450924T030000\nRDATE:19450924T030000\nEND:DAYLIGHT\nBEGIN:STANDARD\nTZOFFSETTO:+010000\nTZOFFSETFROM:+020000\nTZNAME:Europe/Berlin(STD)\nDTSTART:19451118T030000\nRDATE:19451118T030000\nEND:STANDARD\nBEGIN:DAYLIGHT\nTZOFFSETTO:+020000\nTZOFFSETFROM:+010000\nTZNAME:Europe/Berlin(DST)\nDTSTART:19460414T020000\nRDATE:19460414T020000\nEND:DAYLIGHT\nBEGIN:DAYLIGHT\nTZOFFSETTO:+020000\nTZOFFSETFROM:+010000\nTZNAME:Europe/Berlin(DST)\nDTSTART:19470406T030000\nRDATE:19470406T030000\nEND:DAYLIGHT\nBEGIN:DAYLIGHT\nTZOFFSETTO:+030000\nTZOFFSETFROM:+020000\nTZNAME:Europe/Berlin(DST)\nDTSTART:19470511T030000\nRDATE:19470511T030000\nEND:DAYLIGHT\nBEGIN:STANDARD\nTZOFFSETTO:+010000\nTZOFFSETFROM:+020000\nTZNAME:Europe/Berlin(STD)\nDTSTART:19461007T030000\nRDATE:19461007T030000\nEND:STANDARD\nBEGIN:DAYLIGHT\nTZOFFSETTO:+020000\nTZOFFSETFROM:+030000\nTZNAME:Europe/Berlin(DST)\nDTSTART:19470629T030000\nRDATE:19470629T030000\nEND:DAYLIGHT\nBEGIN:DAYLIGHT\nTZOFFSETTO:+020000\nTZOFFSETFROM:+010000\nTZNAME:Europe/Berlin(DST)\nDTSTART:19480418T020000\nRDATE:19480418T020000\nEND:DAYLIGHT\nBEGIN:DAYLIGHT\nTZOFFSETTO:+020000\nTZOFFSETFROM:+010000\nTZNAME:Europe/Berlin(DST)\nDTSTART:19490410T020000\nRDATE:19490410T020000\nEND:DAYLIGHT\nBEGIN:STANDARD\nTZOFFSETTO:+010000\nTZOFFSETFROM:+020000\nTZNAME:Europe/Berlin(STD)\nDTSTART:19471005T030000\nRRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=1SU;UNTIL=19491002T030000\nEND:STANDARD\nBEGIN:DAYLIGHT\nTZOFFSETTO:+020000\nTZOFFSETFROM:+010000\nTZNAME:Europe/Berlin(DST)\nDTSTART:19800406T020000\nRDATE:19800406T020000\nEND:DAYLIGHT\nBEGIN:STANDARD\nTZOFFSETTO:+010000\nTZOFFSETFROM:+020000\nTZNAME:Europe/Berlin(STD)\nDTSTART:19800928T030000\nRRULE:FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950924T030000\nEND:STANDARD\nBEGIN:DAYLIGHT\nTZOFFSETTO:+020000\nTZOFFSETFROM:+010000\nTZNAME:Europe/Berlin(DST)\nDTSTART:19810329T020000\nRRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=19960331T020000\nEND:DAYLIGHT\nBEGIN:STANDARD\nTZOFFSETTO:+010000\nTZOFFSETFROM:+020000\nTZNAME:Europe/Berlin(STD)\nDTSTART:19961027T030000\nRDATE:19961027T030000\nEND:STANDARD\nBEGIN:DAYLIGHT\nTZOFFSETTO:+020000\nTZOFFSETFROM:+010000\nTZNAME:(DST)\nDTSTART:19970330T020000\nRRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU\nEND:DAYLIGHT\nBEGIN:STANDARD\nTZOFFSETTO:+010000\nTZOFFSETFROM:+020000\nTZNAME:(STD)\nDTSTART:19971026T030000\nRRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU\nEND:STANDARD\nEND:VTIMEZONE'
+    def getEventWithTime(name: str, starttime: datetime.datetime, endtime: datetime.datetime, comment: str = ""):
+        event = iCal.Event()
+        event['uid'] = "Skript-Dienstplaneintrag-" + starttime.strftime("%Y-%m-%d")
+        event.add('dtstart', starttime.astimezone(datetime.timezone.utc))
+        event.add('dtend', endtime.astimezone(datetime.timezone.utc))
+        event.add('summary', name)
+        event.add('description', comment)
+        return event
 
-def createAndSaveWholeDay(cal, name, starttime: datetime, endtime: datetime, comment=""):
-    try:
-        cal.save_event("""BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:Flos-Python-Script
-{}
-BEGIN:VEVENT
-UID:Skript-Dienstplaneintrag-{:02d}{:02d}{:02d}
-DTSTART;VALUE=DATE;TZID=Europe/Berlin:{:04d}{:02d}{:02d}
-DTEND;VALUE=DATE;TZID=Europe/Berlin:{:04d}{:02d}{:02d}
-SUMMARY:{}
-DESCRIPTION:{}
-END:VEVENT
-END:VCALENDAR
-""".format(caldavTimezoneStr, starttime.year, starttime.month, starttime.day, starttime.year, starttime.month, starttime.day, endtime.year, endtime.month, endtime.day, name, comment))
-    except Exception:
-        print(traceback.format_exc())
+    def formatReadable(cal):
+        return cal.to_ical().decode("utf-8").replace('\r\n', '\n').strip()
+    
 
-def createAndSaveWithTime(cal, name, starttime: datetime, endtime: datetime, comment=""):
-    try:
-        cal.save_event("""BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:Flos-Python-Script
-{}
-BEGIN:VEVENT
-UID:Skript-Dienstplaneintrag-{:02d}{:02d}{:02d}
-DTSTART;TZID=Europe/Berlin:{:04d}{:02d}{:02d}T{:02d}{:02d}00Z
-DTEND;TZID=Europe/Berlin:{:04d}{:02d}{:02d}T{:02d}{:02d}00Z
-SUMMARY:{}
-DESCRIPTION:{}
-END:VEVENT
-END:VCALENDAR
-""".format(caldavTimezoneStr, starttime.year, starttime.month, starttime.day, starttime.year, starttime.month, starttime.day, starttime.hour, starttime.minute, endtime.year, endtime.month, endtime.day, endtime.hour, endtime.minute, name, comment))
-    except Exception:
-        print(traceback.format_exc())
+class webDavStorer:
+    def __init__(self, calendar: caldav.DAVClient.calendar):
+        self.cal = calendar
+    
+    def storeEvent(self, event: iCal.Event):
+        try:
+            self.cal.save_event(event)
+        except Exception:
+            print(traceback.format_exc())
 
 
-
-file_path = filedialog.askopenfilename(filetypes=[("PDF Files", "*.pdf")])
+inputPdfPath = filedialog.askopenfilename(filetypes=[("PDF Files", "*.pdf")])
 
 
 # Liest nur den Oberen Bereich aus (für die Erkennung welcher Monat vorliegt)
-headerTableAll = tabula.read_pdf(file_path, pages="all", relative_area=True, area=[0, 0, 11.4984265311063, 68.753206772704], output_format="dataframe", multiple_tables=False)
+headerTableAll = tabula.read_pdf(inputPdfPath, pages="all", relative_area=True, area=[0, 0, 11.4984265311063, 68.753206772704], output_format="dataframe", multiple_tables=False)
 headerTableFirst = headerTableAll[0]
 # Gibt einmal die gesammt Tabelle aus
 with pandas.option_context('display.max_rows', None, 'display.max_columns', None):
@@ -107,7 +121,7 @@ print(erstelltStrs, "=>", erstelltDatetime, "=>", erstelltFormattestStr)
 
 
 # Erkennt den eigentlichen Bereich des Dienstplanes
-contentTableAll = tabula.read_pdf(file_path, pages=0, relative_area=True, area=[14.6695715323166, 0, 100, 100], output_format="dataframe", multiple_tables=False)
+contentTableAll = tabula.read_pdf(inputPdfPath, pages=0, relative_area=True, area=[14.6695715323166, 0, 100, 100], output_format="dataframe", multiple_tables=False)
 contentTableFirst = contentTableAll[0]
 
 # Gibt einmal die gesammt Tabelle aus
@@ -125,13 +139,16 @@ print("meine Zeile:\n", rowFlorian)
 with caldav.DAVClient(url=config["calDav"]["URL"], username=config["calDav"]["Username"], password=config["calDav"]["Password"]) as client:
     my_principal = client.principal()
     calendars = my_principal.calendars()
-    calendar = client.calendar(url="https://dav.mailbusiness.ionos.de/caldav/Y2FsOi8vMC8xNDc")
+    calendar = client.calendar(url=config["CalendarURL"])
 
     # Löscht alle Termine in dem entsprechendem Monat
     events_fetched = calendar.search(start=zeitraumDatetime[0], end=zeitraumDatetime[1]+datetime.timedelta(days=1),event=True, expand=True)
     for event in events_fetched:
         event.delete()
 
+    cal = iCalCreator.getCalendar()
+    webDav = webDavStorer(calendar)
+    
     # Iteriert durch alle Tage des Monats (eigener Zähler, da freischichten Gruppiert werden und dadurch Tage übersprungen werden)
     x=0
     while x < lenMonat:
@@ -148,8 +165,10 @@ with caldav.DAVClient(url=config["calDav"]["URL"], username=config["calDav"]["Us
                     break
             print(str(x+1)+": itemDay ist kein String!; y=", y)
             start = datetime.datetime(year, month, x+1)
-            end = start + datetime.timedelta(days=y+1)
-            createAndSaveWholeDay(calendar, "???", start, end, erstelltFormattestStr)
+            end = start + datetime.timedelta(days=y)
+            event = iCalCreator.getEventFullDays("???", start, end, erstelltFormattestStr)
+            cal.add_component(event)
+            webDav.storeEvent(event)
             x+=y
                 
         else:
@@ -171,8 +190,10 @@ with caldav.DAVClient(url=config["calDav"]["URL"], username=config["calDav"]["Us
                         break
                 print("frei; y=", y)
                 start = datetime.datetime(year, month, x+1)
-                end = start + datetime.timedelta(days=y+1)
-                createAndSaveWholeDay(calendar, "FREI ("+str(itemDay[0])+")", start, end, erstelltFormattestStr)
+                end = start + datetime.timedelta(days=y)
+                event = iCalCreator.getEventFullDays("FREI ("+str(itemDay[0])+")", start, end, erstelltFormattestStr)
+                cal.add_component(event)
+                webDav.storeEvent(event)
                 x+=y
 
             elif len(itemDay)==3: # frägt ab, ob die Schicht Uhrzeiten hat
@@ -183,9 +204,20 @@ with caldav.DAVClient(url=config["calDav"]["URL"], username=config["calDav"]["Us
                 if end < start:
                     end += datetime.timedelta(days=1)
                 print(itemDay)
-                createAndSaveWithTime(calendar, itemDay[0], start, end, erstelltFormattestStr)
+                event = iCalCreator.getEventWithTime(itemDay[0], start, end, erstelltFormattestStr)
+                cal.add_component(event)
+                webDav.storeEvent(event)
                 
             else:
-                createAndSaveWholeDay(calendar, itemDay[0], datetime.datetime(year, month, x+1), datetime.datetime(year, month, x+1), erstelltFormattestStr)
+                event = iCalCreator.getEventWithTime(itemDay[0], datetime.datetime(year, month, x+1), datetime.datetime(year, month, x+1), erstelltFormattestStr)
+                cal.add_component(event)
+                webDav.storeEvent(event)
         
         x+=1
+    
+    
+print(iCalCreator.formatReadable(cal))
+outICalPath = filedialog.asksaveasfilename(filetypes=[("iCalFiles", "*.ics")])
+with open(outICalPath, 'wb') as iCalFile:
+    iCalFile.write(cal.to_ical())
+    iCalFile.close()
