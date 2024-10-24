@@ -1,3 +1,5 @@
+from typing import Union
+
 from tkinter import filedialog
 import yaml
 
@@ -12,7 +14,13 @@ import icalendar as iCal
 
 import traceback
 
-version = "0.1"
+
+version = "0.1" # wird in den iCal Files angegeben
+
+
+# Schichten die mit "frei ()"" angezeit werden
+freiSchichten = ["X", "UT", "AG"]
+
 
 # Importiert die Einstellungen und fragt sie ab, falls die Datei nicht existiert
 try:
@@ -40,18 +48,24 @@ except FileNotFoundError:
         yaml.dump(config, configFile)
 
 
-# Schichten die mit "frei ()"" angezeit werden
-freiSchichten = ["X", "UT"]
-
 class iCalCreator:
-    def getCalendar():
-        # Timezone ist CopyPaste aus einem KalenderExport von Thunderbird
+    def getCalendar() -> iCal.Calendar:
+        """Erzeugt ein neues iCal Objekt mit ProdId & Version
+        """
         cal = iCal.Calendar()
         cal.add('prodid', '-//Flos Scripte/TC 200 Dienstpläne/V'+version)
         cal.add('version', '2.0')
         return cal
        
-    def getEventFullDays(name: str, starttime: datetime.datetime, endtime: datetime.datetime, comment: str = ""):
+    def getEventFullDays(name: str, starttime: datetime.datetime, endtime: datetime.datetime, comment: str = "") -> iCal.Event:
+        """Erzeugt ein ganztägiges iCal Event (kann mehrere Tage gehen)
+
+        Args:
+            name (str): iCal Summary - die Überschirft des Termins
+            starttime (datetime.datetime): Datetimeobjekt, Uhrzeit wird ignoriert
+            endtime (datetime.datetime): Datetimeobjekt, Uhrzeit wird ignoriert
+            comment (str, optional): iCal description - die ausführliche Beschreibung des Termins Defaults to
+        """
         endtime = endtime + datetime.timedelta(days=1)
         event = iCal.Event()
         event['uid'] = "Skript-Dienstplaneintrag-" + starttime.strftime("%Y-%m-%d")
@@ -61,7 +75,15 @@ class iCalCreator:
         event.add('description', comment)
         return event
 
-    def getEventWithTime(name: str, starttime: datetime.datetime, endtime: datetime.datetime, comment: str = ""):
+    def getEventWithTime(name: str, starttime: datetime.datetime, endtime: datetime.datetime, comment: str = "") -> iCal.Event:
+        """Erzegut ein "normales" iCal Event mit Uhrzeit
+
+        Args:
+            name (str): iCal Summary -- die Überschirft des Termines
+            starttime (datetime.datetime): Die Anfangsuhrzeit
+            endtime (datetime.datetime): Die Enduhrzeit
+            comment (str, optional): iCal description - die ausführliche Beschreibung des Termines. Defaults to ""
+        """
         event = iCal.Event()
         event['uid'] = "Skript-Dienstplaneintrag-" + starttime.strftime("%Y-%m-%d")
         event.add('dtstart', starttime.astimezone(datetime.timezone.utc))
@@ -70,29 +92,42 @@ class iCalCreator:
         event.add('description', comment)
         return event
 
-    def formatReadable(cal):
+    def formatReadable(cal: Union[iCal.Calendar, iCal.Event]) -> str:
+        """Gibt einen schön formatierten String des gesammten iCal Objektes aus, der auch für die WebDav funktion funktioniert
+
+        Args:
+            cal (Union[iCal.Calendar, iCal.Event]): Das zu formatierende Objet
+
+        Returns:
+            str: Der formatierte String
+        """
         return cal.to_ical().decode("utf-8").replace('\r\n', '\n').strip()
     
 
-class webDavStorer:
-    def __init__(self, calendar: caldav.DAVClient.calendar):
+class webDavHandler:
+    def __init__(self, calendar: caldav.DAVClient.calendar) -> None:
         self.cal = calendar
     
-    def storeEvent(self, event: iCal.Event):
+    def storeEvent(self, event: iCal.Event) -> None:
         try:
             self.cal.save_event(iCalCreator.formatReadable(event))
         except Exception:
             print(traceback.format_exc())
 
 
+
+
+# Öffnet einen Filedialog und fragt nach dem zu verarbeitendem PDF, schließt das Programm, falls keines angegeben wird
 inputPdfPath = filedialog.askopenfilename(filetypes=[("PDF Files", "*.pdf")])
 if inputPdfPath == '':
     raise Exception("No PDF selected!")
 
 
+# Ließt aus, wie viele Seiten das PDF hat
 reader = PdfReader(inputPdfPath)
 inputPdfNumPages = len(reader.pages)
 print("Seitenzahl:", inputPdfNumPages)
+
 
 # Liest nur den Oberen Bereich aus (für die Erkennung welcher Monat vorliegt)
 headerTableAll = tabula.read_pdf(inputPdfPath, pages="all", relative_area=True, area=[0, 0, 11.4984265311063, 68.753206772704], output_format="dataframe", multiple_tables=False)
@@ -125,7 +160,7 @@ print(erstelltStrs, "=>", erstelltDatetime, "=>", erstelltFormattestStr)
 
 
 
-# Erkennt den eigentlichen Bereich des Dienstplanes
+# Geht durch alle Seiten durch und ließt den eigentlichen Teil des Planes ein
 contentTablesAll = []
 contentTablesFirst = []
 rowEigen = None
@@ -141,7 +176,7 @@ for x in range(inputPdfNumPages):
 
     # Sucht die eigene Zeile
     rowFound = contentTablesFirst[x].loc[contentTablesFirst[x].iloc[:, 0] == config["eigenerName"]]
-    print("gefundene Zeile:\n", rowFound, rowFound.empty)
+    # Wird keine Zeile gefunden ist das Ergebniss ein leerer Dataframe, das wird hier abgefragt, wird auf zwei Seiten ein Ergebniss gefunden, wird eine Exeption geraised
     if rowFound.empty == False:
         if rowEigen:
             raise Exception("Auf zwei Seiten wurde der entsprechende Name gefunden!")
@@ -151,7 +186,7 @@ print("meine Zeile:\n", rowEigen)
 
 
 
-
+# Öffnet den Kalender
 with caldav.DAVClient(url=config["calDav"]["URL"], username=config["calDav"]["Username"], password=config["calDav"]["Password"]) as client:
     my_principal = client.principal()
     calendars = my_principal.calendars()
@@ -162,16 +197,16 @@ with caldav.DAVClient(url=config["calDav"]["URL"], username=config["calDav"]["Us
     for event in events_fetched:
         event.delete()
 
-    cal = iCalCreator.getCalendar()
-    webDav = webDavStorer(calendar)
+    cal = iCalCreator.getCalendar() # Inizialisiert ein neues iCal Objekt
+    webDav = webDavHandler(calendar) # Übergibt den Kalender and den webDavhandler
     
-    # Iteriert durch alle Tage des Monats (eigener Zähler, da freischichten Gruppiert werden und dadurch Tage übersprungen werden)
+    # Iteriert durch alle Tage des Monats (eigener Zähler, da freischichten Gruppiert werden und dadurch teilweise Tage übersprungen werden müssen)
     x=0
     while x < lenMonat:
         itemDay = rowEigen.iat[0, x+1]
         print(itemDay)
 
-        # Erkennt noch nicht geplante Tage, gruppiert aufeinanderfolgende und Trägt "???" ein
+        # Erkennt noch nicht geplante Tage daran, dass das Feld leer ist, gruppiert aufeinanderfolgende und Trägt "???" ein
         if type(itemDay) != str:
             y=0
             while x+y+1 < lenMonat:
@@ -187,12 +222,11 @@ with caldav.DAVClient(url=config["calDav"]["URL"], username=config["calDav"]["Us
             webDav.storeEvent(event)
             x+=y
                 
-        else:
-            itemDay = itemDay.split("\r")
+        else: # Für alle Tage mit irgendeinem Inhalt
+            itemDay = itemDay.split("\r") # Splitet die Zeilen auf - Trennt Schichtname und Uhrzeiten
             print(str(x+1)+":", itemDay, " -  ", end='')
 
             # Sortiert Freischichten aus, gruppiert aufeinanderfolgende und Trägt "frei (Name der Schicht)" ein
-            # Sollten untershciedlich benannt Freischichten aufeinander Folgen wird dies falsch erkannt
             if itemDay[0] in freiSchichten:
                 y=0
                 while x+y+1 < lenMonat:
@@ -200,7 +234,7 @@ with caldav.DAVClient(url=config["calDav"]["URL"], username=config["calDav"]["Us
                     if type(itemNextDay) != str:
                         break
                     itemNextDay = itemNextDay.split("\r")
-                    if itemNextDay[0] in freiSchichten:
+                    if itemNextDay[0] == itemDay[0]:
                         y += 1
                     else:
                         break
@@ -212,7 +246,7 @@ with caldav.DAVClient(url=config["calDav"]["URL"], username=config["calDav"]["Us
                 webDav.storeEvent(event)
                 x+=y
 
-            elif len(itemDay)==3: # frägt ab, ob die Schicht Uhrzeiten hat
+            elif len(itemDay)==3: # frägt ab, ob mehrere Zeilen existieren aka, ob die Schicht Uhrzeiten hat, falls ja, wird ein Event mit Uhrzeit angelegt
                 itemDay[1] = itemDay[1].split(":")
                 itemDay[2] = itemDay[2].split(":")
                 start = datetime.datetime(year,month,x+1,int(itemDay[1][0]), int(itemDay[1][1]))
@@ -224,16 +258,19 @@ with caldav.DAVClient(url=config["calDav"]["URL"], username=config["calDav"]["Us
                 cal.add_component(event)
                 webDav.storeEvent(event)
                 
-            else:
+            else: # Falls nein, wird der Schichtnae als ganztägiges Ereigniss angelegt
                 event = iCalCreator.getEventWithTime(itemDay[0], datetime.datetime(year, month, x+1), datetime.datetime(year, month, x+1), erstelltFormattestStr)
                 cal.add_component(event)
                 webDav.storeEvent(event)
         
         x+=1
     
-    
+
+# gibt das fertige iCal aus und speichert es    
 print(iCalCreator.formatReadable(cal))
 outICalPath = filedialog.asksaveasfilename(filetypes=[("iCalFiles", "*.ics")])
+fileext = ".ics"
+outICalPath = outICalPath if outICalPath[-len(fileext):].lower() == fileext else outICalPath + fileext
 if outICalPath != '':
     with open(outICalPath, 'wb') as iCalFile:
         iCalFile.write(cal.to_ical())
