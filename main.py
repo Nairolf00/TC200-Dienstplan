@@ -4,6 +4,7 @@ import yaml
 import tabula
 import pandas
 import numpy
+from PyPDF2 import PdfReader
 
 import caldav
 import datetime
@@ -88,6 +89,11 @@ inputPdfPath = filedialog.askopenfilename(filetypes=[("PDF Files", "*.pdf")])
 if inputPdfPath == '':
     raise Exception("No PDF selected!")
 
+
+reader = PdfReader(inputPdfPath)
+inputPdfNumPages = len(reader.pages)
+print("Seitenzahl:", inputPdfNumPages)
+
 # Liest nur den Oberen Bereich aus (für die Erkennung welcher Monat vorliegt)
 headerTableAll = tabula.read_pdf(inputPdfPath, pages="all", relative_area=True, area=[0, 0, 11.4984265311063, 68.753206772704], output_format="dataframe", multiple_tables=False)
 headerTableFirst = headerTableAll[0]
@@ -120,17 +126,28 @@ print(erstelltStrs, "=>", erstelltDatetime, "=>", erstelltFormattestStr)
 
 
 # Erkennt den eigentlichen Bereich des Dienstplanes
-contentTableAll = tabula.read_pdf(inputPdfPath, pages=0, relative_area=True, area=[14.6695715323166, 0, 100, 100], output_format="dataframe", multiple_tables=False)
-contentTableFirst = contentTableAll[0]
+contentTablesAll = []
+contentTablesFirst = []
+rowEigen = None
+for x in range(inputPdfNumPages):
+    print(x)
+    contentTablesAll.append(tabula.read_pdf(inputPdfPath, pages=x+1, relative_area=True, area=[14.6695715323166, 0, 100, 100], output_format="dataframe", multiple_tables=False))
+    
+    # Gibt einmal die gesammt Tabelle aus
+    with pandas.option_context('display.max_rows', None, 'display.max_columns', None):
+        print(contentTablesAll[x])
+    
+    contentTablesFirst.append(contentTablesAll[x][0])
 
-# Gibt einmal die gesammt Tabelle aus
-with pandas.option_context('display.max_rows', None, 'display.max_columns', None):
-    print(contentTableAll)
-
-
-# Sucht die eigene Zeile
-rowFlorian = contentTableFirst.loc[contentTableFirst.iloc[:, 0] == config["eigenerName"]]
-print("meine Zeile:\n", rowFlorian)
+    # Sucht die eigene Zeile
+    rowFound = contentTablesFirst[x].loc[contentTablesFirst[x].iloc[:, 0] == config["eigenerName"]]
+    print("gefundene Zeile:\n", rowFound, rowFound.empty)
+    if rowFound.empty == False:
+        if rowEigen:
+            raise Exception("Auf zwei Seiten wurde der entsprechende Name gefunden!")
+        rowEigen = rowFound
+    
+print("meine Zeile:\n", rowEigen)
 
 
 
@@ -151,14 +168,14 @@ with caldav.DAVClient(url=config["calDav"]["URL"], username=config["calDav"]["Us
     # Iteriert durch alle Tage des Monats (eigener Zähler, da freischichten Gruppiert werden und dadurch Tage übersprungen werden)
     x=0
     while x < lenMonat:
-        itemDay = rowFlorian.iat[0, x+1]
+        itemDay = rowEigen.iat[0, x+1]
         print(itemDay)
 
         # Erkennt noch nicht geplante Tage, gruppiert aufeinanderfolgende und Trägt "???" ein
         if type(itemDay) != str:
             y=0
             while x+y+1 < lenMonat:
-                if type(rowFlorian.iat[0, x+1+y+1]) != str:
+                if type(rowEigen.iat[0, x+1+y+1]) != str:
                     y += 1
                 else:
                     break
@@ -179,7 +196,7 @@ with caldav.DAVClient(url=config["calDav"]["URL"], username=config["calDav"]["Us
             if itemDay[0] in freiSchichten:
                 y=0
                 while x+y+1 < lenMonat:
-                    itemNextDay = rowFlorian.iat[0, x+1+y+1]
+                    itemNextDay = rowEigen.iat[0, x+1+y+1]
                     if type(itemNextDay) != str:
                         break
                     itemNextDay = itemNextDay.split("\r")
