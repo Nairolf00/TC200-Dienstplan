@@ -17,7 +17,6 @@ version = "0.1"
 try:
     with open("config.yaml", 'r') as configFile:
         config = yaml.safe_load(configFile)
-        configFile.close()
 except FileNotFoundError:
     config = {}
     config["eigenerName"] = input("Eigener Name, exakt wie er im Dinestplan angezeigt wird: ")
@@ -38,7 +37,6 @@ except FileNotFoundError:
     
     with open("config.yaml", 'w') as configFile:
         yaml.dump(config, configFile)
-        configFile.close()
 
 
 # Schichten die mit "frei ()"" angezeit werden
@@ -81,13 +79,14 @@ class webDavStorer:
     
     def storeEvent(self, event: iCal.Event):
         try:
-            self.cal.save_event(event)
+            self.cal.save_event(iCalCreator.formatReadable(event))
         except Exception:
             print(traceback.format_exc())
 
 
 inputPdfPath = filedialog.askopenfilename(filetypes=[("PDF Files", "*.pdf")])
-
+if inputPdfPath == '':
+    raise Exception("No PDF selected!")
 
 # Liest nur den Oberen Bereich aus (für die Erkennung welcher Monat vorliegt)
 headerTableAll = tabula.read_pdf(inputPdfPath, pages="all", relative_area=True, area=[0, 0, 11.4984265311063, 68.753206772704], output_format="dataframe", multiple_tables=False)
@@ -218,6 +217,8 @@ with caldav.DAVClient(url=config["calDav"]["URL"], username=config["calDav"]["Us
     
 print(iCalCreator.formatReadable(cal))
 outICalPath = filedialog.asksaveasfilename(filetypes=[("iCalFiles", "*.ics")])
-with open(outICalPath, 'wb') as iCalFile:
-    iCalFile.write(cal.to_ical())
-    iCalFile.close()
+if outICalPath != '':
+    with open(outICalPath, 'wb') as iCalFile:
+        iCalFile.write(cal.to_ical())
+else:
+    print("Fiile save cancled!")
