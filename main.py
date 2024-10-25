@@ -14,12 +14,39 @@ import icalendar as iCal
 
 import traceback
 
+import getkey
+import sys
+
 
 version = "0.1" # wird in den iCal Files angegeben
+print("\n---- Flos TC200 zu iCal / CalDav, Version:", version, "----\n")
 
-
+                
 # Schichten die mit "frei ()"" angezeit werden
 freiSchichten = ["X", "UT", "AG"]
+
+
+def inputYesNo(displayText: int, defaultValue: bool = False) -> bool:
+    currentValue = defaultValue
+    while True:
+        if currentValue == True:
+            out = displayText + " ▮ YES / ▯ no"
+        else:
+            out = displayText + " ▯ yes / ▮ NO"
+        print(out)
+        
+        while True:
+            key = getkey.getkey()
+            if key == getkey.keys.LEFT:
+                currentValue = True
+                break
+            elif key == getkey.keys.RIGHT:
+                currentValue = False
+                break
+            elif key == getkey.keys.ENTER:
+                return currentValue
+            
+        sys.stdout.write("\033[F\033[K")
 
 
 # Importiert die Einstellungen und fragt sie ab, falls die Datei nicht existiert
