@@ -1,7 +1,7 @@
-from typing import Union
-
 from tkinter import filedialog
-import yaml
+
+import configparser
+import fancyInput
 
 import tabula
 import pandas
@@ -14,8 +14,7 @@ import icalendar as iCal
 
 import traceback
 
-import getkey
-import sys
+
 
 
 version = "0.1" # wird in den iCal Files angegeben
@@ -24,29 +23,6 @@ print("\n---- Flos TC200 zu iCal / CalDav, Version:", version, "----\n")
                 
 # Schichten die mit "frei ()"" angezeit werden
 freiSchichten = ["X", "UT", "AG"]
-
-
-def inputYesNo(displayText: int, defaultValue: bool = False) -> bool:
-    currentValue = defaultValue
-    while True:
-        if currentValue == True:
-            out = displayText + " ▮ YES / ▯ no"
-        else:
-            out = displayText + " ▯ yes / ▮ NO"
-        print(out)
-        
-        while True:
-            key = getkey.getkey()
-            if key == getkey.keys.LEFT:
-                currentValue = True
-                break
-            elif key == getkey.keys.RIGHT:
-                currentValue = False
-                break
-            elif key == getkey.keys.ENTER:
-                return currentValue
-            
-        sys.stdout.write("\033[F\033[K")
 
 
 # Importiert die Einstellungen und fragt sie ab, falls die Datei nicht existiert
@@ -84,7 +60,7 @@ class iCalCreator:
         cal.add('version', '2.0')
         return cal
        
-    def getEventFullDays(name: str, starttime: datetime.datetime, endtime: datetime.datetime, comment: str = "") -> iCal.Event:
+    def getEventFullDays(name, starttime, endtime, comment = "") -> iCal.Event:
         """Erzeugt ein ganztägiges iCal Event (kann mehrere Tage gehen)
 
         Args:
@@ -102,7 +78,7 @@ class iCalCreator:
         event.add('description', comment)
         return event
 
-    def getEventWithTime(name: str, starttime: datetime.datetime, endtime: datetime.datetime, comment: str = "") -> iCal.Event:
+    def getEventWithTime(name, starttime, endtime, comment = "") -> iCal.Event:
         """Erzegut ein "normales" iCal Event mit Uhrzeit
 
         Args:
@@ -119,17 +95,16 @@ class iCalCreator:
         event.add('description', comment)
         return event
 
-    def formatReadable(cal: Union[iCal.Calendar, iCal.Event]) -> str:
+    def formatReadable(cal) -> str:
         """Gibt einen schön formatierten String des gesammten iCal Objektes aus, der auch für die WebDav funktion funktioniert
 
         Args:
-            cal (Union[iCal.Calendar, iCal.Event]): Das zu formatierende Objet
+            cal (iCal.Calendar, iCal.Event): Das zu formatierende Objet
 
         Returns:
             str: Der formatierte String
         """
         return cal.to_ical().decode("utf-8").replace('\r\n', '\n').strip()
-    
 
 class webDavHandler:
     def __init__(self, calendar: caldav.DAVClient.calendar) -> None:
@@ -140,8 +115,6 @@ class webDavHandler:
             self.cal.save_event(iCalCreator.formatReadable(event))
         except Exception:
             print(traceback.format_exc())
-
-
 
 
 # Öffnet einen Filedialog und fragt nach dem zu verarbeitendem PDF, schließt das Programm, falls keines angegeben wird
