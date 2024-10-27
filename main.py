@@ -15,8 +15,6 @@ import icalendar as iCal
 import traceback
 
 
-
-
 version = "0.1" # wird in den iCal Files angegeben
 print("\n---- Flos TC200 zu iCal / CalDav, Version:", version, "----\n")
 
@@ -25,30 +23,118 @@ print("\n---- Flos TC200 zu iCal / CalDav, Version:", version, "----\n")
 freiSchichten = ["X", "UT", "AG"]
 
 
-# Importiert die Einstellungen und fragt sie ab, falls die Datei nicht existiert
-try:
-    with open("config.yaml", 'r') as configFile:
-        config = yaml.safe_load(configFile)
-except FileNotFoundError:
-    config = {}
-    config["eigenerName"] = input("Eigener Name, exakt wie er im Dinestplan angezeigt wird: ")
-    if input("Modus? iCal Datei oder WebDav (i/w): ") == "i":
-        config["webDav"] = False
-        config["calDav"] = {}
-        config["calDav"]["URL"] = None
-        config["calDav"]["Username"] = None
-        config["calDav"]["Password"] = None
-        config["CalendarURL"] = None
-    else:
-        config["webDav"] = True
-        config["calDav"] = {}
-        config["calDav"]["URL"]= input("CalDav URL: ")
-        config["calDav"]["Username"] = input("CalDav / Mailaccount Username: ")
-        config["calDav"]["Password"] = input("CalDav / Mailaccount Passwort: ")
-        config["CalendarURL"] = input("URL zu dem einen spezifischen Kalender (!Alle Termine in den entsprechendne Monaten werden gelöscht!): ")
+
+# Importiert die Einstellungen
+config = configparser.ConfigParser()
+config.read("config.ini")
+configError = False
+configPromtCahnge = False
+
+# Überprüft ob alle Einstellungen vorhanden sind
+defaultSettings = {
+    "VERHALTEN":{
+        "eigenerName": "",
+        "enableCalDav": False,
+        "iCalOut": 1 # 0: Disable, 1: Ask, 2: Enable
+    },
+    "CALDAV": {
+        "url": "",
+        "username": "",
+        "password": ""
+    }
+}
+settingsDialogs = {
+    "VERHALTEN":{
+        "eigenerName": {
+            "Hint": "Der eigene Name, exakt wie er im Diensplan steht",
+            "Options": "Text"},
+        "enableCalDav": {
+            "Hint": "Soll das direkte hochladen der Termine mittels CalDAV aktiviert werden?",
+            "Options": "YesNo"},
+        "iCalOut": {
+            "Hint": "Sollen die Termine als iCal gespeichert werden?",
+            "Options": [("NEIN", "nein"), ("JEDES MAL FRAGEN", "jedes mal fragen"), ("JA (kann probleme verursachen, wenn die Konsole zu dem Zeitpunkt nicht Fokusiert ist)", "ja")]} # 0: Disable, 1: Ask, 2: Enable
+    },
+    "CALDAV": {
+        "url": {
+            "Hint": "Die URL zu dem CalDAV Calender (Das Skript löscht alle Termine in dem einlesenen Monat!)",
+            "Options": "Text"},
+        "username": {
+            "Hint": "Username zu dem Calender",
+            "Options": "Text"},
+        "password": {
+            "Hint": "Passwort (Achtung, das wird im Klartext gespeichert!)",
+            "Options": "Text"}
+    }
+}
+
+for section in defaultSettings:
+    if not section in config:
+        configError = True
+        break
+    for key in defaultSettings[section]:
+        if not key in config[section]:
+            configError = True
+            break
+
+def changeConfig():
+    currentConfig = defaultSettings
+    for section in defaultSettings:
+        if section in config:
+            for key in defaultSettings[section]:
+                currentConfig[section][key] = config[section].get(key, defaultSettings[section][key])
+    print(currentConfig)
+    for section in defaultSettings:
+        if section not in config:
+            config[section] = {}
+        if section == "CALDAV" and currentConfig["VERHALTEN"]["enableCalDav"] == False:
+            pass
+        else:
+            for key in defaultSettings[section]:
+                if settingsDialogs[section][key]["Options"] == "Text":
+                    newValue = input(settingsDialogs[section][key]["Hint"] + ": ")
+                elif settingsDialogs[section][key]["Options"] == "YesNo":
+                    newValue = fancyInput.inputYesNo(settingsDialogs[section][key]["Hint"], bool(currentConfig[section][key]))
+                else:
+                    newValue = fancyInput.inputFromSelection(settingsDialogs[section][key]["Hint"], settingsDialogs[section][key]["Options"], int(currentConfig[section][key]))
+                currentConfig[section][key] = newValue
+                config[section][key] = str(newValue)
+    print(currentConfig)
+    with open('config.ini', 'w') as configfile:
+        config.write(configfile)
+
+if configError:
+    print("!!! Das Config File existiert nicht, oder ein Wert fehlt !!!")
+    print()
+    print("Die Optionen können mit den Pfeiltasten ausgewählt und mit Enter bestätigt werden.")
+    changeConfig()
+else:
+    # Frägt, ob Einstellungen geändert werden sollen
+    print("Die Optionen können mit den Pfeiltasten ausgewählt und mit Enter bestätigt werden.")
+    if fancyInput.inputYesNo("Soll die Konfiguration angepasst werden?"):
+        changeConfig()
     
-    with open("config.yaml", 'w') as configFile:
-        yaml.dump(config, configFile)
+
+exit()
+
+config["eigenerName"] = input("Eigener Name, exakt wie er im Dinestplan angezeigt wird: ")
+if input("Modus? iCal Datei oder WebDav (i/w): ") == "i":
+    config["webDav"] = False
+    config["calDav"] = {}
+    config["calDav"]["URL"] = None
+    config["calDav"]["Username"] = None
+    config["calDav"]["Password"] = None
+    config["CalendarURL"] = None
+else:
+    config["webDav"] = True
+    config["calDav"] = {}
+    config["calDav"]["URL"]= input("CalDav URL: ")
+    config["calDav"]["Username"] = input("CalDav / Mailaccount Username: ")
+    config["calDav"]["Password"] = input("CalDav / Mailaccount Passwort: ")
+    config["CalendarURL"] = input("URL zu dem einen spezifischen Kalender (!Alle Termine in den entsprechendne Monaten werden gelöscht!): ")
+
+with open("config.yaml", 'w') as configFile:
+    yaml.dump(config, configFile)
 
 
 class iCalCreator:
