@@ -28,7 +28,7 @@ freiSchichten = ["X", "UT", "AG"]
 config = configparser.ConfigParser()
 config.read("config.ini")
 configError = False
-configPromtCahnge = False
+configPromtChange = False
 
 # Überprüft ob alle Einstellungen vorhanden sind
 defaultSettings = {
@@ -116,25 +116,6 @@ else:
     
 
 exit()
-
-config["eigenerName"] = input("Eigener Name, exakt wie er im Dinestplan angezeigt wird: ")
-if input("Modus? iCal Datei oder WebDav (i/w): ") == "i":
-    config["webDav"] = False
-    config["calDav"] = {}
-    config["calDav"]["URL"] = None
-    config["calDav"]["Username"] = None
-    config["calDav"]["Password"] = None
-    config["CalendarURL"] = None
-else:
-    config["webDav"] = True
-    config["calDav"] = {}
-    config["calDav"]["URL"]= input("CalDav URL: ")
-    config["calDav"]["Username"] = input("CalDav / Mailaccount Username: ")
-    config["calDav"]["Password"] = input("CalDav / Mailaccount Passwort: ")
-    config["CalendarURL"] = input("URL zu dem einen spezifischen Kalender (!Alle Termine in den entsprechendne Monaten werden gelöscht!): ")
-
-with open("config.yaml", 'w') as configFile:
-    yaml.dump(config, configFile)
 
 
 class iCalCreator:
