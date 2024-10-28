@@ -1,7 +1,6 @@
 from tkinter import filedialog
 
-import configparser
-import fancyInput
+import flosutilities as util
 
 import tabula
 import pandas
@@ -23,14 +22,7 @@ print("\n---- Flos TC200 zu iCal / CalDav, Version:", version, "----\n")
 freiSchichten = ["X", "UT", "AG"]
 
 
-
-# Importiert die Einstellungen
-config = configparser.ConfigParser()
-config.read("config.ini")
-configError = False
-configPromtChange = False
-
-expectedSettings = {
+configStructure = {
     "VERHALTEN":{
         "eigenerName": {
             "hint": "Der eigene Name, exakt wie er im Diensplan steht",
@@ -43,8 +35,12 @@ expectedSettings = {
         "iCalOut": {
             "hint": "Sollen die Termine als iCal gespeichert werden?",
             "type": int,
-            "options": [("NEIN", "nein"), ("JEDES MAL FRAGEN", "jedes mal fragen"), ("JA (kann probleme verursachen, wenn die Konsole zu dem Zeitpunkt nicht Fokusiert ist)", "ja")],# 0: Disable, 1: Ask, 2: Enable
-            "default": 1}
+            "options": [("NEIN", "nein"), ("JEDES MAL FRAGEN", "jedes mal fragen"), ("JA", "ja")],# 0: Disable, 1: Ask, 2: Enable
+            "default": 1},
+        "aksForSettingChange": {
+            "hint": "Soll bei jedem Programmstart gefragt werden, ob die Einstellugnen geändert werden sollen? (Macht Probleme im Terminal von VSCode)",
+            "type": bool,
+            "default": False}
     },
     "CALDAV": {
         "url": {
@@ -62,74 +58,28 @@ expectedSettings = {
     }
 }
 
-# Überprüft ob alle Einstellungen vorhanden sind
-for section in expectedSettings:
-    if not section in config:
-        configError = True
-        break
-    for key in expectedSettings[section]:
-        if not key in config[section]:
-            configError = True
-            break
+config = util.settingsHandler(configStructure, "config.ini")
 
-def changeConfig():
-    currentConfig = {}
-    
-    # Setzt currentConfig auf die dafault Werte
-    for section in expectedSettings:
-        currentConfig[section] = {}
-        for key in expectedSettings[section]:
-            currentConfig[section][key] = expectedSettings[section][key]["default"]
-    
-    # Frägt ab, welche Einstellungen bereits gespeichert sind und ersetzt die current Config durch diese
-    for section in currentConfig:
-        if section in config:
-            for key in currentConfig[section]:
-                if key in config[section]:
-                    if expectedSettings[section][key]["type"] == str:
-                        valueFromFile = config[section][key]
-                    elif expectedSettings[section][key]["type"] == bool:
-                        valueFromFile = config[section].getboolean(key)
-                    elif expectedSettings[section][key]["type"] == int:
-                        valueFromFile = config[section].getint(key)
-                        
-                    print(valueFromFile, type(valueFromFile))
-                    currentConfig[section][key] = valueFromFile
-    
-    print(currentConfig)
-    
-    for section in expectedSettings:
-        if section == "CALDAV" and currentConfig["VERHALTEN"]["enableCalDav"] == False:
-            pass
-        else:
-            for key in expectedSettings[section]:
-                if expectedSettings[section][key]["type"] == str:
-                    newValue = input(expectedSettings[section][key]["hint"] + ": ")
-                elif expectedSettings[section][key]["type"] == bool:
-                    newValue = fancyInput.inputYesNo(expectedSettings[section][key]["hint"], bool(currentConfig[section][key]))
-                elif expectedSettings[section][key]["type"] == int:
-                    newValue = fancyInput.inputFromSelection(expectedSettings[section][key]["hint"], expectedSettings[section][key]["options"], int(currentConfig[section][key]))
-                else:
-                    raise Exception("Der type, der Einstellung ist nicht bekannt!")
-                currentConfig[section][key] = newValue
-                config[section][key] = str(newValue)
-    print(currentConfig)
-    with open('config.ini', 'w') as configfile:
-        config.write(configfile)
+configNeedsChange = False
+config.loadSection("VERHALTEN")
 
-if configError:
-    print("!!! Das Config File existiert nicht, oder ein Wert fehlt !!!")
-    print()
+if config.checkSectionIsComplete("VERHALTEN"):
+    configNeedsChange = True
+
+if config.currentConfig["VERHALTEN"]["enableCalDav"]:
+    config.loadSection("CALDAV")
+    if config.checkSectionIsComplete("CALDAV"):
+        configNeedsChange = True
+
+if not configNeedsChange and config.currentConfig["VERHALTEN"]["aksForSettingChange"]:
     print("Die Optionen können mit den Pfeiltasten ausgewählt und mit Enter bestätigt werden.")
-    changeConfig()
-else:
-    # Frägt, ob Einstellungen geändert werden sollen
-    print("Die Optionen können mit den Pfeiltasten ausgewählt und mit Enter bestätigt werden.")
-    if fancyInput.inputYesNo("Soll die Konfiguration angepasst werden?"):
-        changeConfig()
-    
-
-exit()
+    if util.fancyInput.inputYesNo("Soll die Konfiguration angepasst werden?"):
+        configNeedsChange = True
+        
+if configNeedsChange:
+    config.changeConfigSection("VERHALTEN")
+    if config.currentConfig["VERHALTEN"]["enableCalDav"]:
+        config.changeConfigSection("CALDAV")
 
 
 class iCalCreator:
@@ -256,7 +206,7 @@ for x in range(inputPdfNumPages):
     contentTablesFirst.append(contentTablesAll[x][0])
 
     # Sucht die eigene Zeile
-    rowFound = contentTablesFirst[x].loc[contentTablesFirst[x].iloc[:, 0] == config["eigenerName"]]
+    rowFound = contentTablesFirst[x].loc[contentTablesFirst[x].iloc[:, 0] == config.currentConfig["VERHALTEN"]["eigenerName"]]
     # Wird keine Zeile gefunden ist das Ergebniss ein leerer Dataframe, das wird hier abgefragt, wird auf zwei Seiten ein Ergebniss gefunden, wird eine Exeption geraised
     if rowFound.empty == False:
         if rowEigen:
@@ -268,10 +218,10 @@ print("meine Zeile:\n", rowEigen)
 
 
 # Öffnet den Kalender
-with caldav.DAVClient(url=config["calDav"]["URL"], username=config["calDav"]["Username"], password=config["calDav"]["Password"]) as client:
+with caldav.DAVClient(url=config.currentConfig["CALDAV"]["url"], username=config.currentConfig["CALDAV"]["username"], password=config.currentConfig["CALDAV"]["password"]) as client:
     my_principal = client.principal()
     calendars = my_principal.calendars()
-    calendar = client.calendar(url=config["CalendarURL"])
+    calendar = client.calendar(url=config.currentConfig["CALDAV"]["url"])
 
     # Löscht alle Termine in dem entsprechendem Monat
     events_fetched = calendar.search(start=zeitraumDatetime[0], end=zeitraumDatetime[1]+datetime.timedelta(days=1),event=True, expand=True)
@@ -347,13 +297,22 @@ with caldav.DAVClient(url=config["calDav"]["URL"], username=config["calDav"]["Us
         x+=1
     
 
-# gibt das fertige iCal aus und speichert es    
+ 
 print(iCalCreator.formatReadable(cal))
-outICalPath = filedialog.asksaveasfilename(filetypes=[("iCalFiles", "*.ics")])
-fileext = ".ics"
-outICalPath = outICalPath if outICalPath[-len(fileext):].lower() == fileext else outICalPath + fileext
-if outICalPath != '':
-    with open(outICalPath, 'wb') as iCalFile:
-        iCalFile.write(cal.to_ical())
-else:
-    print("Fiile save cancled!")
+
+
+def saveiCal():
+    outICalPath = filedialog.asksaveasfilename(filetypes=[("iCalFiles", "*.ics")])
+    fileext = ".ics"
+    outICalPath = outICalPath if outICalPath[-len(fileext):].lower() == fileext else outICalPath + fileext
+    if outICalPath != '':
+        with open(outICalPath, 'wb') as iCalFile:
+            iCalFile.write(cal.to_ical())
+    else:
+        print("Fiile save cancled!")
+
+if config.currentConfig["VERHALTEN"]["iCalOut"] == 1:
+    if util.fancyInput.inputYesNo("iCal Datei speichern?", True):
+        saveiCal()
+if config.currentConfig["VERHALTEN"]["iCalOut"] == 2:
+    saveiCal()

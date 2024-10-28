@@ -1,6 +1,6 @@
 import getkey
 import sys
-import utils
+import flosutilities.simpleMath as simpleMath
 
 
 def inputYesNo(displayText, defaultValue = False) -> bool:
@@ -58,5 +58,5 @@ def inputFromSelection(displayText, options, defaultValue = 0, showBoxes = True)
             elif key == getkey.keys.ENTER:
                 return currentValue
         
-        currentValue = utils.clip(0, lenOptions-1, currentValue)
+        currentValue = simpleMath.clip(0, lenOptions-1, currentValue)
         sys.stdout.write("\033[F\033[K")
