@@ -1,0 +1,2 @@
+- der FileDialog geht in vscode aus irgendeinem Gurnd nicht auf, wenn man davor in das Terminal klickt (z.B. wenn man die Einstellungen ändert, oder weil man bestätigt, dass man die Datei speichern möchte)
+- Defaultwerte für Textinput bei den Einstellungen

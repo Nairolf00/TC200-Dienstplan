@@ -1,7 +1,6 @@
-from typing import Union
-
 from tkinter import filedialog
-import yaml
+
+import flosutilities as util
 
 import tabula
 import pandas
@@ -16,36 +15,71 @@ import traceback
 
 
 version = "0.1" # wird in den iCal Files angegeben
+print("\n---- Flos TC200 zu iCal / CalDav, Version:", version, "----\n")
 
-
+                
 # Schichten die mit "frei ()"" angezeit werden
 freiSchichten = ["X", "UT", "AG"]
 
 
-# Importiert die Einstellungen und fragt sie ab, falls die Datei nicht existiert
-try:
-    with open("config.yaml", 'r') as configFile:
-        config = yaml.safe_load(configFile)
-except FileNotFoundError:
-    config = {}
-    config["eigenerName"] = input("Eigener Name, exakt wie er im Dinestplan angezeigt wird: ")
-    if input("Modus? iCal Datei oder WebDav (i/w): ") == "i":
-        config["webDav"] = False
-        config["calDav"] = {}
-        config["calDav"]["URL"] = None
-        config["calDav"]["Username"] = None
-        config["calDav"]["Password"] = None
-        config["CalendarURL"] = None
-    else:
-        config["webDav"] = True
-        config["calDav"] = {}
-        config["calDav"]["URL"]= input("CalDav URL: ")
-        config["calDav"]["Username"] = input("CalDav / Mailaccount Username: ")
-        config["calDav"]["Password"] = input("CalDav / Mailaccount Passwort: ")
-        config["CalendarURL"] = input("URL zu dem einen spezifischen Kalender (!Alle Termine in den entsprechendne Monaten werden gelöscht!): ")
-    
-    with open("config.yaml", 'w') as configFile:
-        yaml.dump(config, configFile)
+configStructure = {
+    "VERHALTEN":{
+        "eigenerName": {
+            "hint": "Der eigene Name, exakt wie er im Diensplan steht",
+            "type": str,
+            "default": ""},
+        "enableCalDav": {
+            "hint": "Soll das direkte hochladen der Termine mittels CalDAV aktiviert werden?",
+            "type": bool,
+            "default": False},
+        "iCalOut": {
+            "hint": "Sollen die Termine als iCal gespeichert werden?",
+            "type": int,
+            "options": [("NEIN", "nein"), ("JEDES MAL FRAGEN", "jedes mal fragen"), ("JA", "ja")],# 0: Disable, 1: Ask, 2: Enable
+            "default": 1},
+        "aksForSettingChange": {
+            "hint": "Soll bei jedem Programmstart gefragt werden, ob die Einstellugnen geändert werden sollen? (Macht Probleme im Terminal von VSCode)",
+            "type": bool,
+            "default": False}
+    },
+    "CALDAV": {
+        "url": {
+            "hint": "Die URL zu dem CalDAV Calender (Das Skript löscht alle Termine in dem einlesenen Monat!)",
+            "type": str,
+            "default": ""},
+        "username": {
+            "hint": "Username zu dem Calender",
+            "type": str,
+            "default": ""},
+        "password": {
+            "hint": "Passwort (Achtung, das wird im Klartext gespeichert!)",
+            "type": str,
+            "default": ""}
+    }
+}
+
+config = util.settingsHandler(configStructure, "config.ini")
+
+configNeedsChange = False
+config.loadSection("VERHALTEN")
+
+if config.checkSectionIsComplete("VERHALTEN"):
+    configNeedsChange = True
+
+if config.currentConfig["VERHALTEN"]["enableCalDav"]:
+    config.loadSection("CALDAV")
+    if config.checkSectionIsComplete("CALDAV"):
+        configNeedsChange = True
+
+if not configNeedsChange and config.currentConfig["VERHALTEN"]["aksForSettingChange"]:
+    print("Die Optionen können mit den Pfeiltasten ausgewählt und mit Enter bestätigt werden.")
+    if util.fancyInput.inputYesNo("Soll die Konfiguration angepasst werden?"):
+        configNeedsChange = True
+        
+if configNeedsChange:
+    config.changeConfigSection("VERHALTEN")
+    if config.currentConfig["VERHALTEN"]["enableCalDav"]:
+        config.changeConfigSection("CALDAV")
 
 
 class iCalCreator:
@@ -57,7 +91,7 @@ class iCalCreator:
         cal.add('version', '2.0')
         return cal
        
-    def getEventFullDays(name: str, starttime: datetime.datetime, endtime: datetime.datetime, comment: str = "") -> iCal.Event:
+    def getEventFullDays(name, starttime, endtime, comment = "") -> iCal.Event:
         """Erzeugt ein ganztägiges iCal Event (kann mehrere Tage gehen)
 
         Args:
@@ -75,7 +109,7 @@ class iCalCreator:
         event.add('description', comment)
         return event
 
-    def getEventWithTime(name: str, starttime: datetime.datetime, endtime: datetime.datetime, comment: str = "") -> iCal.Event:
+    def getEventWithTime(name, starttime, endtime, comment = "") -> iCal.Event:
         """Erzegut ein "normales" iCal Event mit Uhrzeit
 
         Args:
@@ -92,17 +126,16 @@ class iCalCreator:
         event.add('description', comment)
         return event
 
-    def formatReadable(cal: Union[iCal.Calendar, iCal.Event]) -> str:
+    def formatReadable(cal) -> str:
         """Gibt einen schön formatierten String des gesammten iCal Objektes aus, der auch für die WebDav funktion funktioniert
 
         Args:
-            cal (Union[iCal.Calendar, iCal.Event]): Das zu formatierende Objet
+            cal (iCal.Calendar, iCal.Event): Das zu formatierende Objet
 
         Returns:
             str: Der formatierte String
         """
         return cal.to_ical().decode("utf-8").replace('\r\n', '\n').strip()
-    
 
 class webDavHandler:
     def __init__(self, calendar: caldav.DAVClient.calendar) -> None:
@@ -113,8 +146,6 @@ class webDavHandler:
             self.cal.save_event(iCalCreator.formatReadable(event))
         except Exception:
             print(traceback.format_exc())
-
-
 
 
 # Öffnet einen Filedialog und fragt nach dem zu verarbeitendem PDF, schließt das Programm, falls keines angegeben wird
@@ -175,7 +206,7 @@ for x in range(inputPdfNumPages):
     contentTablesFirst.append(contentTablesAll[x][0])
 
     # Sucht die eigene Zeile
-    rowFound = contentTablesFirst[x].loc[contentTablesFirst[x].iloc[:, 0] == config["eigenerName"]]
+    rowFound = contentTablesFirst[x].loc[contentTablesFirst[x].iloc[:, 0] == config.currentConfig["VERHALTEN"]["eigenerName"]]
     # Wird keine Zeile gefunden ist das Ergebniss ein leerer Dataframe, das wird hier abgefragt, wird auf zwei Seiten ein Ergebniss gefunden, wird eine Exeption geraised
     if rowFound.empty == False:
         if rowEigen:
@@ -187,92 +218,95 @@ print("meine Zeile:\n", rowEigen)
 
 
 # Öffnet den Kalender
-with caldav.DAVClient(url=config["calDav"]["URL"], username=config["calDav"]["Username"], password=config["calDav"]["Password"]) as client:
+if config.currentConfig["VERHALTEN"]["enableCalDav"]:
+    client = caldav.DAVClient(url=config.currentConfig["CALDAV"]["url"], username=config.currentConfig["CALDAV"]["username"], password=config.currentConfig["CALDAV"]["password"])
     my_principal = client.principal()
     calendars = my_principal.calendars()
-    calendar = client.calendar(url=config["CalendarURL"])
+    calendar = client.calendar(url=config.currentConfig["CALDAV"]["url"])
 
     # Löscht alle Termine in dem entsprechendem Monat
     events_fetched = calendar.search(start=zeitraumDatetime[0], end=zeitraumDatetime[1]+datetime.timedelta(days=1),event=True, expand=True)
     for event in events_fetched:
         event.delete()
 
-    cal = iCalCreator.getCalendar() # Inizialisiert ein neues iCal Objekt
     webDav = webDavHandler(calendar) # Übergibt den Kalender and den webDavhandler
-    
-    # Iteriert durch alle Tage des Monats (eigener Zähler, da freischichten Gruppiert werden und dadurch teilweise Tage übersprungen werden müssen)
-    x=0
-    while x < lenMonat:
-        itemDay = rowEigen.iat[0, x+1]
-        print(itemDay)
 
-        # Erkennt noch nicht geplante Tage daran, dass das Feld leer ist, gruppiert aufeinanderfolgende und Trägt "???" ein
-        if type(itemDay) != str:
+cal = iCalCreator.getCalendar() # Inizialisiert ein neues iCal Objekt
+
+# Iteriert durch alle Tage des Monats (eigener Zähler, da freischichten Gruppiert werden und dadurch teilweise Tage übersprungen werden müssen)
+x=0
+while x < lenMonat:
+    itemDay = rowEigen.iat[0, x+1]
+    print(itemDay)
+
+    # Erkennt noch nicht geplante Tage daran, dass das Feld leer ist, gruppiert aufeinanderfolgende und Trägt "???" ein
+    if type(itemDay) != str:
+        y=0
+        while x+y+1 < lenMonat:
+            if type(rowEigen.iat[0, x+1+y+1]) != str:
+                y += 1
+            else:
+                break
+        print(str(x+1)+": itemDay ist kein String!; y=", y)
+        start = datetime.datetime(year, month, x+1)
+        end = start + datetime.timedelta(days=y)
+        event = iCalCreator.getEventFullDays("???", start, end, erstelltFormattestStr)
+        x+=y
+            
+    else: # Für alle Tage mit irgendeinem Inhalt
+        itemDay = itemDay.split("\r") # Splitet die Zeilen auf - Trennt Schichtname und Uhrzeiten
+        print(str(x+1)+":", itemDay, " -  ", end='')
+
+        # Sortiert Freischichten aus, gruppiert aufeinanderfolgende und Trägt "frei (Name der Schicht)" ein
+        if itemDay[0] in freiSchichten:
             y=0
             while x+y+1 < lenMonat:
-                if type(rowEigen.iat[0, x+1+y+1]) != str:
+                itemNextDay = rowEigen.iat[0, x+1+y+1]
+                if type(itemNextDay) != str:
+                    break
+                itemNextDay = itemNextDay.split("\r")
+                if itemNextDay[0] == itemDay[0]:
                     y += 1
                 else:
                     break
-            print(str(x+1)+": itemDay ist kein String!; y=", y)
+            print("frei; y=", y)
             start = datetime.datetime(year, month, x+1)
             end = start + datetime.timedelta(days=y)
-            event = iCalCreator.getEventFullDays("???", start, end, erstelltFormattestStr)
-            cal.add_component(event)
-            webDav.storeEvent(event)
+            event = iCalCreator.getEventFullDays("FREI ("+str(itemDay[0])+")", start, end, erstelltFormattestStr)
             x+=y
-                
-        else: # Für alle Tage mit irgendeinem Inhalt
-            itemDay = itemDay.split("\r") # Splitet die Zeilen auf - Trennt Schichtname und Uhrzeiten
-            print(str(x+1)+":", itemDay, " -  ", end='')
 
-            # Sortiert Freischichten aus, gruppiert aufeinanderfolgende und Trägt "frei (Name der Schicht)" ein
-            if itemDay[0] in freiSchichten:
-                y=0
-                while x+y+1 < lenMonat:
-                    itemNextDay = rowEigen.iat[0, x+1+y+1]
-                    if type(itemNextDay) != str:
-                        break
-                    itemNextDay = itemNextDay.split("\r")
-                    if itemNextDay[0] == itemDay[0]:
-                        y += 1
-                    else:
-                        break
-                print("frei; y=", y)
-                start = datetime.datetime(year, month, x+1)
-                end = start + datetime.timedelta(days=y)
-                event = iCalCreator.getEventFullDays("FREI ("+str(itemDay[0])+")", start, end, erstelltFormattestStr)
-                cal.add_component(event)
-                webDav.storeEvent(event)
-                x+=y
-
-            elif len(itemDay)==3: # frägt ab, ob mehrere Zeilen existieren aka, ob die Schicht Uhrzeiten hat, falls ja, wird ein Event mit Uhrzeit angelegt
-                itemDay[1] = itemDay[1].split(":")
-                itemDay[2] = itemDay[2].split(":")
-                start = datetime.datetime(year,month,x+1,int(itemDay[1][0]), int(itemDay[1][1]))
-                end = datetime.datetime(year,month,x+1,int(itemDay[2][0]), int(itemDay[2][1]))
-                if end < start:
-                    end += datetime.timedelta(days=1)
-                print(itemDay)
-                event = iCalCreator.getEventWithTime(itemDay[0], start, end, erstelltFormattestStr)
-                cal.add_component(event)
-                webDav.storeEvent(event)
-                
-            else: # Falls nein, wird der Schichtnae als ganztägiges Ereigniss angelegt
-                event = iCalCreator.getEventWithTime(itemDay[0], datetime.datetime(year, month, x+1), datetime.datetime(year, month, x+1), erstelltFormattestStr)
-                cal.add_component(event)
-                webDav.storeEvent(event)
+        elif len(itemDay)==3: # frägt ab, ob mehrere Zeilen existieren aka, ob die Schicht Uhrzeiten hat, falls ja, wird ein Event mit Uhrzeit angelegt
+            itemDay[1] = itemDay[1].split(":")
+            itemDay[2] = itemDay[2].split(":")
+            start = datetime.datetime(year,month,x+1,int(itemDay[1][0]), int(itemDay[1][1]))
+            end = datetime.datetime(year,month,x+1,int(itemDay[2][0]), int(itemDay[2][1]))
+            if end < start:
+                end += datetime.timedelta(days=1)
+            print(itemDay)
+            event = iCalCreator.getEventWithTime(itemDay[0], start, end, erstelltFormattestStr)
+            
+        else: # Falls nein, wird der Schichtnae als ganztägiges Ereigniss angelegt
+            event = iCalCreator.getEventWithTime(itemDay[0], datetime.datetime(year, month, x+1), datetime.datetime(year, month, x+1), erstelltFormattestStr)
         
-        x+=1
+    cal.add_component(event)
+    if config.currentConfig["VERHALTEN"]["enableCalDav"]:
+        webDav.storeEvent(event)
     
+    x+=1
+    
+ 
+def saveiCal():
+    outICalPath = filedialog.asksaveasfilename(filetypes=[("iCalFiles", "*.ics")])
+    fileext = ".ics"
+    outICalPath = outICalPath if outICalPath[-len(fileext):].lower() == fileext else outICalPath + fileext
+    if outICalPath == '' or outICalPath == '.ics':
+        print("Fiile save cancled!")
+    else:
+        with open(outICalPath, 'wb') as iCalFile:
+            iCalFile.write(cal.to_ical())
 
-# gibt das fertige iCal aus und speichert es    
-print(iCalCreator.formatReadable(cal))
-outICalPath = filedialog.asksaveasfilename(filetypes=[("iCalFiles", "*.ics")])
-fileext = ".ics"
-outICalPath = outICalPath if outICalPath[-len(fileext):].lower() == fileext else outICalPath + fileext
-if outICalPath != '':
-    with open(outICalPath, 'wb') as iCalFile:
-        iCalFile.write(cal.to_ical())
-else:
-    print("Fiile save cancled!")
+if config.currentConfig["VERHALTEN"]["iCalOut"] == 1:
+    if util.fancyInput.inputYesNo("iCal Datei speichern?", True):
+        saveiCal()
+if config.currentConfig["VERHALTEN"]["iCalOut"] == 2:
+    saveiCal()
