@@ -30,73 +30,87 @@ config.read("config.ini")
 configError = False
 configPromtChange = False
 
-# Überprüft ob alle Einstellungen vorhanden sind
-defaultSettings = {
-    "VERHALTEN":{
-        "eigenerName": "",
-        "enableCalDav": False,
-        "iCalOut": 1 # 0: Disable, 1: Ask, 2: Enable
-    },
-    "CALDAV": {
-        "url": "",
-        "username": "",
-        "password": ""
-    }
-}
-settingsDialogs = {
+expectedSettings = {
     "VERHALTEN":{
         "eigenerName": {
-            "Hint": "Der eigene Name, exakt wie er im Diensplan steht",
-            "Options": "Text"},
+            "hint": "Der eigene Name, exakt wie er im Diensplan steht",
+            "type": str,
+            "default": ""},
         "enableCalDav": {
-            "Hint": "Soll das direkte hochladen der Termine mittels CalDAV aktiviert werden?",
-            "Options": "YesNo"},
+            "hint": "Soll das direkte hochladen der Termine mittels CalDAV aktiviert werden?",
+            "type": bool,
+            "default": False},
         "iCalOut": {
-            "Hint": "Sollen die Termine als iCal gespeichert werden?",
-            "Options": [("NEIN", "nein"), ("JEDES MAL FRAGEN", "jedes mal fragen"), ("JA (kann probleme verursachen, wenn die Konsole zu dem Zeitpunkt nicht Fokusiert ist)", "ja")]} # 0: Disable, 1: Ask, 2: Enable
+            "hint": "Sollen die Termine als iCal gespeichert werden?",
+            "type": int,
+            "options": [("NEIN", "nein"), ("JEDES MAL FRAGEN", "jedes mal fragen"), ("JA (kann probleme verursachen, wenn die Konsole zu dem Zeitpunkt nicht Fokusiert ist)", "ja")],# 0: Disable, 1: Ask, 2: Enable
+            "default": 1}
     },
     "CALDAV": {
         "url": {
-            "Hint": "Die URL zu dem CalDAV Calender (Das Skript löscht alle Termine in dem einlesenen Monat!)",
-            "Options": "Text"},
+            "hint": "Die URL zu dem CalDAV Calender (Das Skript löscht alle Termine in dem einlesenen Monat!)",
+            "type": str,
+            "default": ""},
         "username": {
-            "Hint": "Username zu dem Calender",
-            "Options": "Text"},
+            "hint": "Username zu dem Calender",
+            "type": str,
+            "default": ""},
         "password": {
-            "Hint": "Passwort (Achtung, das wird im Klartext gespeichert!)",
-            "Options": "Text"}
+            "hint": "Passwort (Achtung, das wird im Klartext gespeichert!)",
+            "type": str,
+            "default": ""}
     }
 }
 
-for section in defaultSettings:
+# Überprüft ob alle Einstellungen vorhanden sind
+for section in expectedSettings:
     if not section in config:
         configError = True
         break
-    for key in defaultSettings[section]:
+    for key in expectedSettings[section]:
         if not key in config[section]:
             configError = True
             break
 
 def changeConfig():
-    currentConfig = defaultSettings
-    for section in defaultSettings:
+    currentConfig = {}
+    
+    # Setzt currentConfig auf die dafault Werte
+    for section in expectedSettings:
+        currentConfig[section] = {}
+        for key in expectedSettings[section]:
+            currentConfig[section][key] = expectedSettings[section][key]["default"]
+    
+    # Frägt ab, welche Einstellungen bereits gespeichert sind und ersetzt die current Config durch diese
+    for section in currentConfig:
         if section in config:
-            for key in defaultSettings[section]:
-                currentConfig[section][key] = config[section].get(key, defaultSettings[section][key])
+            for key in currentConfig[section]:
+                if key in config[section]:
+                    if expectedSettings[section][key]["type"] == str:
+                        valueFromFile = config[section][key]
+                    elif expectedSettings[section][key]["type"] == bool:
+                        valueFromFile = config[section].getboolean(key)
+                    elif expectedSettings[section][key]["type"] == int:
+                        valueFromFile = config[section].getint(key)
+                        
+                    print(valueFromFile, type(valueFromFile))
+                    currentConfig[section][key] = valueFromFile
+    
     print(currentConfig)
-    for section in defaultSettings:
-        if section not in config:
-            config[section] = {}
+    
+    for section in expectedSettings:
         if section == "CALDAV" and currentConfig["VERHALTEN"]["enableCalDav"] == False:
             pass
         else:
-            for key in defaultSettings[section]:
-                if settingsDialogs[section][key]["Options"] == "Text":
-                    newValue = input(settingsDialogs[section][key]["Hint"] + ": ")
-                elif settingsDialogs[section][key]["Options"] == "YesNo":
-                    newValue = fancyInput.inputYesNo(settingsDialogs[section][key]["Hint"], bool(currentConfig[section][key]))
+            for key in expectedSettings[section]:
+                if expectedSettings[section][key]["type"] == str:
+                    newValue = input(expectedSettings[section][key]["hint"] + ": ")
+                elif expectedSettings[section][key]["type"] == bool:
+                    newValue = fancyInput.inputYesNo(expectedSettings[section][key]["hint"], bool(currentConfig[section][key]))
+                elif expectedSettings[section][key]["type"] == int:
+                    newValue = fancyInput.inputFromSelection(expectedSettings[section][key]["hint"], expectedSettings[section][key]["options"], int(currentConfig[section][key]))
                 else:
-                    newValue = fancyInput.inputFromSelection(settingsDialogs[section][key]["Hint"], settingsDialogs[section][key]["Options"], int(currentConfig[section][key]))
+                    raise Exception("Der type, der Einstellung ist nicht bekannt!")
                 currentConfig[section][key] = newValue
                 config[section][key] = str(newValue)
     print(currentConfig)
