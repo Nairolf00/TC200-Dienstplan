@@ -218,7 +218,8 @@ print("meine Zeile:\n", rowEigen)
 
 
 # Öffnet den Kalender
-with caldav.DAVClient(url=config.currentConfig["CALDAV"]["url"], username=config.currentConfig["CALDAV"]["username"], password=config.currentConfig["CALDAV"]["password"]) as client:
+if config.currentConfig["VERHALTEN"]["enableCalDav"]:
+    client = caldav.DAVClient(url=config.currentConfig["CALDAV"]["url"], username=config.currentConfig["CALDAV"]["username"], password=config.currentConfig["CALDAV"]["password"])
     my_principal = client.principal()
     calendars = my_principal.calendars()
     calendar = client.calendar(url=config.currentConfig["CALDAV"]["url"])
@@ -228,88 +229,81 @@ with caldav.DAVClient(url=config.currentConfig["CALDAV"]["url"], username=config
     for event in events_fetched:
         event.delete()
 
-    cal = iCalCreator.getCalendar() # Inizialisiert ein neues iCal Objekt
     webDav = webDavHandler(calendar) # Übergibt den Kalender and den webDavhandler
-    
-    # Iteriert durch alle Tage des Monats (eigener Zähler, da freischichten Gruppiert werden und dadurch teilweise Tage übersprungen werden müssen)
-    x=0
-    while x < lenMonat:
-        itemDay = rowEigen.iat[0, x+1]
-        print(itemDay)
 
-        # Erkennt noch nicht geplante Tage daran, dass das Feld leer ist, gruppiert aufeinanderfolgende und Trägt "???" ein
-        if type(itemDay) != str:
+cal = iCalCreator.getCalendar() # Inizialisiert ein neues iCal Objekt
+
+# Iteriert durch alle Tage des Monats (eigener Zähler, da freischichten Gruppiert werden und dadurch teilweise Tage übersprungen werden müssen)
+x=0
+while x < lenMonat:
+    itemDay = rowEigen.iat[0, x+1]
+    print(itemDay)
+
+    # Erkennt noch nicht geplante Tage daran, dass das Feld leer ist, gruppiert aufeinanderfolgende und Trägt "???" ein
+    if type(itemDay) != str:
+        y=0
+        while x+y+1 < lenMonat:
+            if type(rowEigen.iat[0, x+1+y+1]) != str:
+                y += 1
+            else:
+                break
+        print(str(x+1)+": itemDay ist kein String!; y=", y)
+        start = datetime.datetime(year, month, x+1)
+        end = start + datetime.timedelta(days=y)
+        event = iCalCreator.getEventFullDays("???", start, end, erstelltFormattestStr)
+        x+=y
+            
+    else: # Für alle Tage mit irgendeinem Inhalt
+        itemDay = itemDay.split("\r") # Splitet die Zeilen auf - Trennt Schichtname und Uhrzeiten
+        print(str(x+1)+":", itemDay, " -  ", end='')
+
+        # Sortiert Freischichten aus, gruppiert aufeinanderfolgende und Trägt "frei (Name der Schicht)" ein
+        if itemDay[0] in freiSchichten:
             y=0
             while x+y+1 < lenMonat:
-                if type(rowEigen.iat[0, x+1+y+1]) != str:
+                itemNextDay = rowEigen.iat[0, x+1+y+1]
+                if type(itemNextDay) != str:
+                    break
+                itemNextDay = itemNextDay.split("\r")
+                if itemNextDay[0] == itemDay[0]:
                     y += 1
                 else:
                     break
-            print(str(x+1)+": itemDay ist kein String!; y=", y)
+            print("frei; y=", y)
             start = datetime.datetime(year, month, x+1)
             end = start + datetime.timedelta(days=y)
-            event = iCalCreator.getEventFullDays("???", start, end, erstelltFormattestStr)
-            cal.add_component(event)
-            webDav.storeEvent(event)
+            event = iCalCreator.getEventFullDays("FREI ("+str(itemDay[0])+")", start, end, erstelltFormattestStr)
             x+=y
-                
-        else: # Für alle Tage mit irgendeinem Inhalt
-            itemDay = itemDay.split("\r") # Splitet die Zeilen auf - Trennt Schichtname und Uhrzeiten
-            print(str(x+1)+":", itemDay, " -  ", end='')
 
-            # Sortiert Freischichten aus, gruppiert aufeinanderfolgende und Trägt "frei (Name der Schicht)" ein
-            if itemDay[0] in freiSchichten:
-                y=0
-                while x+y+1 < lenMonat:
-                    itemNextDay = rowEigen.iat[0, x+1+y+1]
-                    if type(itemNextDay) != str:
-                        break
-                    itemNextDay = itemNextDay.split("\r")
-                    if itemNextDay[0] == itemDay[0]:
-                        y += 1
-                    else:
-                        break
-                print("frei; y=", y)
-                start = datetime.datetime(year, month, x+1)
-                end = start + datetime.timedelta(days=y)
-                event = iCalCreator.getEventFullDays("FREI ("+str(itemDay[0])+")", start, end, erstelltFormattestStr)
-                cal.add_component(event)
-                webDav.storeEvent(event)
-                x+=y
-
-            elif len(itemDay)==3: # frägt ab, ob mehrere Zeilen existieren aka, ob die Schicht Uhrzeiten hat, falls ja, wird ein Event mit Uhrzeit angelegt
-                itemDay[1] = itemDay[1].split(":")
-                itemDay[2] = itemDay[2].split(":")
-                start = datetime.datetime(year,month,x+1,int(itemDay[1][0]), int(itemDay[1][1]))
-                end = datetime.datetime(year,month,x+1,int(itemDay[2][0]), int(itemDay[2][1]))
-                if end < start:
-                    end += datetime.timedelta(days=1)
-                print(itemDay)
-                event = iCalCreator.getEventWithTime(itemDay[0], start, end, erstelltFormattestStr)
-                cal.add_component(event)
-                webDav.storeEvent(event)
-                
-            else: # Falls nein, wird der Schichtnae als ganztägiges Ereigniss angelegt
-                event = iCalCreator.getEventWithTime(itemDay[0], datetime.datetime(year, month, x+1), datetime.datetime(year, month, x+1), erstelltFormattestStr)
-                cal.add_component(event)
-                webDav.storeEvent(event)
+        elif len(itemDay)==3: # frägt ab, ob mehrere Zeilen existieren aka, ob die Schicht Uhrzeiten hat, falls ja, wird ein Event mit Uhrzeit angelegt
+            itemDay[1] = itemDay[1].split(":")
+            itemDay[2] = itemDay[2].split(":")
+            start = datetime.datetime(year,month,x+1,int(itemDay[1][0]), int(itemDay[1][1]))
+            end = datetime.datetime(year,month,x+1,int(itemDay[2][0]), int(itemDay[2][1]))
+            if end < start:
+                end += datetime.timedelta(days=1)
+            print(itemDay)
+            event = iCalCreator.getEventWithTime(itemDay[0], start, end, erstelltFormattestStr)
+            
+        else: # Falls nein, wird der Schichtnae als ganztägiges Ereigniss angelegt
+            event = iCalCreator.getEventWithTime(itemDay[0], datetime.datetime(year, month, x+1), datetime.datetime(year, month, x+1), erstelltFormattestStr)
         
-        x+=1
+    cal.add_component(event)
+    if config.currentConfig["VERHALTEN"]["enableCalDav"]:
+        webDav.storeEvent(event)
     
-
+    x+=1
+    
  
-print(iCalCreator.formatReadable(cal))
-
-
 def saveiCal():
     outICalPath = filedialog.asksaveasfilename(filetypes=[("iCalFiles", "*.ics")])
     fileext = ".ics"
     outICalPath = outICalPath if outICalPath[-len(fileext):].lower() == fileext else outICalPath + fileext
-    if outICalPath != '':
+    if outICalPath == '' or outICalPath == '.ics':
+        print("Fiile save cancled!")
+    else:
         with open(outICalPath, 'wb') as iCalFile:
             iCalFile.write(cal.to_ical())
-    else:
-        print("Fiile save cancled!")
 
 if config.currentConfig["VERHALTEN"]["iCalOut"] == 1:
     if util.fancyInput.inputYesNo("iCal Datei speichern?", True):
