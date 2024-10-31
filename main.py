@@ -35,8 +35,8 @@ configStructure = {
         "iCalOut": {
             "hint": "Sollen die Termine als iCal gespeichert werden?",
             "type": int,
-            "options": [("NEIN", "nein"), ("JEDES MAL FRAGEN", "jedes mal fragen"), ("JA", "ja")],# 0: Disable, 1: Ask, 2: Enable
-            "default": 1},
+            "options": [("NEIN", "nein"), ("JEDES MAL FRAGEN", "jedes mal fragen"), ("JA", "ja")],
+            "default": 1}, # 0: Disable, 1: Ask, 2: Enable
         "aksForSettingChange": {
             "hint": "Soll bei jedem Programmstart gefragt werden, ob die Einstellugnen geändert werden sollen? (Macht Probleme im Terminal von VSCode)",
             "type": bool,
@@ -44,17 +44,19 @@ configStructure = {
     },
     "CALDAV": {
         "url": {
-            "hint": "Die URL zu dem CalDAV Calender (Das Skript löscht alle Termine in dem einlesenen Monat!)",
+            "hint": "Die URL zu dem CalDAV Calender (Das Skript löscht alle Termine in dem eingelesenem Monat!)",
             "type": str,
             "default": ""},
         "username": {
             "hint": "Username zu dem Calender",
-            "type": str,
-            "default": ""},
+            "type": "password",
+            "default": "",
+            "keyringNamespace": "TC200"},
         "password": {
-            "hint": "Passwort (Achtung, das wird im Klartext gespeichert!)",
-            "type": str,
-            "default": ""}
+            "hint": "Passwort",
+            "type": "password",
+            "default": "",
+            "keyringNamespace": "TC200"}
     }
 }
 
@@ -81,6 +83,9 @@ if configNeedsChange:
     if config.currentConfig["VERHALTEN"]["enableCalDav"]:
         config.changeConfigSection("CALDAV")
 
+
+print(config.currentConfig)
+exit()
 
 class iCalCreator:
     def getCalendar() -> iCal.Calendar:

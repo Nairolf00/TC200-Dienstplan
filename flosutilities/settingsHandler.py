@@ -1,7 +1,9 @@
 import flosutilities.fancyInput as fancyInput
 import configparser
-
-
+import cryptography
+import cryptography.fernet
+import keyring
+import getpass
 
 configError = False
 configPromtChange = False
@@ -13,7 +15,7 @@ class settingsHandler():
             "SECTION1":{
                 "key1": {
                     "hint": "Text, der dem Nutzer beim eingeben der Konfig angezeigt wird",
-                    "type": str / bool / int,
+                    "type": str / bool / int / "password",
                     "default": ""},
                 "key2": {
                     "hint": "Text, der dem Nutzer beim eingeben der Konfig angezeigt wird",
@@ -112,6 +114,15 @@ class settingsHandler():
                         valueFromFile = self.configFromFile[section].getboolean(key)
                     elif self.configStructure[section][key]["type"] == int:
                         valueFromFile = self.configFromFile[section].getint(key)
+                    elif self.configStructure[section][key]["type"] == "password":
+                        print("Hi", section, key)
+                        # Passwörter werden erst verschlüsselt (der Schlüssel ist das was in der config.ini steht) und danach in den Windows Keyring gespeichert. (=> es benötigt eine gezielte Attake auf dieses Skript und diese muss mit dem Benutzer, der das Passwort gespeichert hat laufen)
+                        passwordEncoded = keyring.get_password(self.configStructure[section][key]["keyringNamespace"], str(section)+"_"+str(key))
+                        print(passwordEncoded)
+                        encKey = self.configFromFile[section][key].encode()
+                        print(encKey)
+                        fernet = cryptography.fernet.Fernet(encKey)
+                        valueFromFile = fernet.decrypt(passwordEncoded).decode()
                     foundConfig[key] = valueFromFile
         self.currentConfig[section] = foundConfig
         return foundConfig
@@ -147,19 +158,35 @@ class settingsHandler():
             else:
                 self.currentConfig[section] = {}
         for key in self.configStructure[section]:
-            if self.configStructure[section][key]["type"] == str:
-                newValue = input(self.configStructure[section][key]["hint"] + ": ")
-            elif self.configStructure[section][key]["type"] == bool:
-                newValue = fancyInput.inputYesNo(self.configStructure[section][key]["hint"], bool(self.currentConfig[section][key]))
-            elif self.configStructure[section][key]["type"] == int and "options" in self.configStructure[section][key]:
-                newValue = fancyInput.inputFromSelection(self.configStructure[section][key]["hint"], self.configStructure[section][key]["options"], int(self.currentConfig[section][key]))
-            elif self.configStructure[section][key]["type"] == int:
-                newValue = int(input(self.configStructure[section][key]["hint"] + ": "))
+            if self.configStructure[section][key]["type"] == "password":
+                print("hi", section, key)
+                # Passwörter werden erst verschlüsselt (der Schlüssel ist das was in der config.ini steht) und danach mit Keyring gespeichert. (=> es benötigt eine gezielte Attake auf dieses Skript und diese muss mit dem Benutzer, der das Passwort gespeichert hat laufen)
+                encKey = cryptography.fernet.Fernet.generate_key()
+                password = getpass.getpass(self.configStructure[section][key]["hint"] + " (Zur erhöten Sicherheit, werden die getippten Zeichen nicht angezeigt): ")
+                print(password)
+                fernet = cryptography.fernet.Fernet(encKey)
+                passwordEncoded = fernet.encrypt(password.encode())
+                print(passwordEncoded)
+                username = str(section)+"_"+str(key) # Der WindwosKeyring speichert Passwörter zu Usernames, hier wird der Name der Einstellung als Username verwendet
+                keyring.set_password(self.configStructure[section][key]["keyringNamespace"], username, passwordEncoded)
+                self.currentConfig[section][key] = password
+                print(encKey)
+                print(encKey.decode())
+                self.configFromFile[section][key] = encKey.decode()
             else:
-                raise Exception("Der type, der Einstellung ist nicht bekannt!")
-            self.currentConfig[section][key] = newValue
-            self.configFromFile[section][key] = str(newValue)
-        if saveFile == True:
+                if self.configStructure[section][key]["type"] == str:
+                    newValue = input(self.configStructure[section][key]["hint"] + ": ")
+                elif self.configStructure[section][key]["type"] == bool:
+                    newValue = fancyInput.inputYesNo(self.configStructure[section][key]["hint"], bool(self.currentConfig[section][key]))
+                elif self.configStructure[section][key]["type"] == int and "options" in self.configStructure[section][key]:
+                    newValue = fancyInput.inputFromSelection(self.configStructure[section][key]["hint"], self.configStructure[section][key]["options"], int(self.currentConfig[section][key]))
+                elif self.configStructure[section][key]["type"] == int:
+                    newValue = int(input(self.configStructure[section][key]["hint"] + ": "))
+                else:
+                    raise Exception("Der type, der Einstellung ist nicht bekannt!")
+                self.currentConfig[section][key] = newValue
+                self.configFromFile[section][key] = str(newValue)
+        if saveFile == True:    
             self.saveConfigFile()
 
 
