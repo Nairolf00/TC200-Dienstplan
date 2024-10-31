@@ -1,2 +1,10 @@
 - der FileDialog geht in vscode aus irgendeinem Gurnd nicht auf, wenn man davor in das Terminal klickt (z.B. wenn man die Einstellungen ändert, oder weil man bestätigt, dass man die Datei speichern möchte)
 - Defaultwerte für Textinput bei den Einstellungen
+- Nicht stumpf alle Termine löschen, sondern tasächlich die alten aktualisieren
+- direkt von TC 200 herunterladen
+- Logging aufräumen
+- Eigentliche Auswertung noch einmal ordentlich aufräumen
+- Kalender nicht (nur) per URL auswählen, sondern per Name
+- Ganze Abteilung hinzufügen können
+
+- Achtung, evtl. hat SyncThing ein paar änderungen Überschrieben - checken!
