@@ -294,8 +294,10 @@ while x < lenMonat:
     
     x+=1
     
+if config.currentConfig["VERHALTEN"]["enableCalDav"]:
+    client.close()
  
-def saveiCal():
+def saveICal():
     outICalPath = filedialog.asksaveasfilename(filetypes=[("iCalFiles", "*.ics")])
     fileext = ".ics"
     outICalPath = outICalPath if outICalPath[-len(fileext):].lower() == fileext else outICalPath + fileext
@@ -307,6 +309,6 @@ def saveiCal():
 
 if config.currentConfig["VERHALTEN"]["iCalOut"] == 1:
     if util.fancyInput.inputYesNo("iCal Datei speichern?", True):
-        saveiCal()
+        saveICal()
 if config.currentConfig["VERHALTEN"]["iCalOut"] == 2:
-    saveiCal()
+    saveICal()
