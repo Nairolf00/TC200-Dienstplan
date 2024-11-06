@@ -84,9 +84,6 @@ if configNeedsChange:
         config.changeConfigSection("CALDAV")
 
 
-print(config.currentConfig)
-exit()
-
 class iCalCreator:
     def getCalendar() -> iCal.Calendar:
         """Erzeugt ein neues iCal Objekt mit ProdId & Version

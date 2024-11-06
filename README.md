@@ -14,6 +14,7 @@ __ACHTUNG DAS SCRIPT LÖSCHT ALLE TERMINE IN DEM KALENDER! (für den Monat, der 
     - Wenn CalDAV aktiviert ist, werden zusätlich diese Einstellungen abgefragt:
         - URL für CalDAV: Das ist die URL, die zu dem exakten Kalender führt, in dem die Termine hochgeladen werden sollen (ACHTUNG: In dem im PDF erkannten Monat werden alle Termine in dem einen Kalender gelöscht (um bei mehrmaliger Ausführung nicht die Termine doppelt zu haben))
         - Username: Bei mir ist das meine e-Mail
+
         - Password: Bei mir ist das das Passwort zu meinem Mail-Account (Die Einstellungne werden im Klartext gespeichert, es ist bestimmt nicht schlau hier die kompletten Zugangsdaten zu seinem Mailkonto einzugeben, aber ich habe keine bessere Option, vlt. habt ihr ja auch eigenen Zugansdaten für den Kalender)
 4. Es sollte sich ein Filedialog öffnen, mit dem ihr ein PDF auswählen könnt (Das muss zuvor natürlich aus dem TC200 heruntergeladen werden)
 5. Das Skript braucht durchaus paar Sekunden zum rechen und spuckt derzeit dabei noch wild Diagnose-Daten aus
@@ -21,7 +22,7 @@ __ACHTUNG DAS SCRIPT LÖSCHT ALLE TERMINE IN DEM KALENDER! (für den Monat, der 
 
 
 # Was macht das Skript
-1. Versucht die Einstellungen aus config.ini zu importieren, wenn das Settings file nicht existiert werden die gewünschten Einstellungen in der Console abgefragt. (ACHTUNG, die Einstellungen werden im Klartext gespeichert, das Eingeben des Email-Passwortes ist auf eigenen Gefahr)
+1. Versucht die Einstellungen aus config.ini zu importieren, wenn das Settings file nicht existiert werden die gewünschten Einstellungen in der Console abgefragt. [Passwort Sicherheit](#Passwort-Sicherheit)
 2. Öffnet ein PDF, wie es von TC 200 erstellt wird
 3. übergibt dieses an die Tabula Library, die es in einen Dataframe verwandelt. (Man kann Seiten und Bereiche angeben, tatsächlich wird der Header und die eigentlich Dienstplan-Tabelle getrennt ausgelesen) (Alle Seiten werden einzeln eingelesen)
 4. Sucht nach dem eigenen Namen in den Ergebnissen und merkt sich die ganze Zeile (wenn die Anzahl an Treffern nicht ein einziger ist, wird das Programm abgebrochen.)
@@ -32,3 +33,10 @@ __ACHTUNG DAS SCRIPT LÖSCHT ALLE TERMINE IN DEM KALENDER! (für den Monat, der 
 - Python 3.12 (andere Versionen sind ungetestet)
     - Die virtuelle Umgebung ist mit in dem Repo
 - Java
+
+## Passwort Sicherheit
+Die Passwörter werden erst verschlüsselt (der Schlüssel dazu liegt in config.ini) und danach im Keyring von Windwos gespeichert.
+
+D.h. ein potenzieller Angriff muss unter dem entsprechendem Benutzer-Konto ausgeführt werden, um überhaupt an die Passwörter zu kommen und es benötigt eine gezielten Angriff auf dieses Skript um sie dann auch zu entschlüsseln, sie werden nicht in Klartext gespeichert.
+
+(Ich kann derzeit noch nicht ausschließen, dass sie nicht doch irgendwo in Logs der Konsole gespeichert werden, das überprüfe ich noch bei Gelegenheit)
