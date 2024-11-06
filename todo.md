@@ -5,3 +5,4 @@
 - Eigentliche Auswertung noch einmal ordentlich aufräumen
 - Kalender nicht (nur) per URL auswählen, sondern per Name
 - Ganze Abteilung hinzufügen können
+- Noch eine Option für bessere Verschlüsselung der Passwörter hinzufügen
