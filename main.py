@@ -14,7 +14,7 @@ import icalendar as iCal
 import traceback
 
 
-version = "0.1" # wird in den iCal Files angegeben
+version = "0.2" # wird in den iCal Files angegeben
 print("\n---- Flos TC200 zu iCal / CalDav, Version:", version, "----\n")
 
                 
