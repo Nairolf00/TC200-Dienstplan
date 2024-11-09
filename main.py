@@ -22,6 +22,7 @@ print("\n---- Flos TC200 zu iCal / CalDav, Version:", version, "----\n")
 freiSchichten = ["X", "UT", "AG"]
 
 
+# Dies sind die erwarteten Einstellungen in dem config.ini file
 configStructure = {
     "VERHALTEN":{
         "eigenerName": {
@@ -62,6 +63,8 @@ configStructure = {
 
 config = util.settingsHandler(configStructure, "config.ini")
 
+
+# Liest alle Sektionen der Einstellungen ein und überprüft sie auf vollständigkeit (die CALDAV Sektion wird nur eingelesen, wenn CalDav auch aktiviert ist)
 configNeedsChange = False
 config.loadSection("VERHALTEN")
 
@@ -72,16 +75,43 @@ if config.currentConfig["VERHALTEN"]["enableCalDav"]:
     config.loadSection("CALDAV")
     if config.checkSectionIsComplete("CALDAV"):
         configNeedsChange = True
+    try:
+        client = caldav.DAVClient(url=config.currentConfig["CALDAV"]["url"], username=config.currentConfig["CALDAV"]["username"], password=config.currentConfig["CALDAV"]["password"])
+        my_principal = client.principal()
+        client.close()
+    except Exception:
+        print(traceback.format_exc())
+        print("\n\nDie angegebenen CalDav Konfiguration funktioniert nicht!")
+        configNeedsChange = True
 
+# Frägt, falls alles vollständig ist und dies in den Einstellungen aktiviert ist, ob man Änderungen an den Einstellungen machen möchte
 if not configNeedsChange and config.currentConfig["VERHALTEN"]["aksForSettingChange"]:
     print("Die Optionen können mit den Pfeiltasten ausgewählt und mit Enter bestätigt werden.")
     if util.fancyInput.inputYesNo("Soll die Konfiguration angepasst werden?"):
         configNeedsChange = True
         
+# Frägt die Einstellungsänderungen ab, CALDAV wird wieder nur abgefragt, falls aktiviert
 if configNeedsChange:
     config.changeConfigSection("VERHALTEN")
     if config.currentConfig["VERHALTEN"]["enableCalDav"]:
-        config.changeConfigSection("CALDAV")
+        calDavConfigLoop = True
+        while calDavConfigLoop:
+            config.changeConfigSection("CALDAV")
+            calDavConfigLoop = False
+            try:
+                client = caldav.DAVClient(url=config.currentConfig["CALDAV"]["url"], username=config.currentConfig["CALDAV"]["username"], password=config.currentConfig["CALDAV"]["password"])
+                my_principal = client.principal()
+                client.close()
+            except Exception:
+                print(traceback.format_exc())
+                print("\n\nDie angegebenen CalDav Konfiguration funktioniert nicht!")
+                if util.fancyInput.inputFromSelection("Soll die Konfiguration angepasst werden?", [("ANPASSEN", "anpassen"), ("CalDav DEAKTIVIEREN", "CalDav deaktivieren")]) == 0:
+                    calDavConfigLoop = True
+                else:
+                    config.currentConfig["VERHALTEN"]["enableCalDav"] = False
+                    config.configFromFile["VERHALTEN"]["enableCalDav"] = "False"
+                    config.saveConfigFile()
+                
 
 
 class iCalCreator:

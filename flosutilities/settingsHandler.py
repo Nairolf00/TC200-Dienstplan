@@ -47,7 +47,7 @@ class settingsHandler():
         """Überprüft ob alle Einstellungen in der SettingsDatei vorhanen sind (laut configStructure)
 
         Returns:
-            bool: False, wenn min. 1 Element fehlt
+            bool: True, wenn min. 1 Element fehlt
         """
         configError = False
         for section in self.configStructure:
@@ -64,7 +64,7 @@ class settingsHandler():
             section (str): Die zu überprüfende Sektion
 
         Returns:
-            bool: False, wenn min. 1 Element fehlt
+            bool: True, wenn min. 1 Element fehlt
         """
         configError = False
         if not section in self.configFromFile:

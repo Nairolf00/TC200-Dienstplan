@@ -1,7 +1,7 @@
 _(Unfortunately, the script is only commented in German, as all potential users are employees of a company in Germany.)_
 
 
-__ACHTUNG DAS SCRIPT LÖSCHT ALLE TERMINE IN DEM KALENDER! (für den Monat, der eingelesen wird)__
+__ACHTUNG DAS SCRIPT LÖSCHT ALLE TERMINE IN DEM EINEM KALENDER! (für den Monat, der eingelesen wird)__
 
 # Verwendung
 1. Das Script ist in [Python 3 (getestet mit Version 3.12.0)](https://www.python.org/downloads/release/python-3126/) geschrieben und der Teil, der das PDF auswertet benötigt [JAVA](https://www.java.com/de/) -> beides muss vorab instaliert werden
@@ -39,4 +39,4 @@ Die Passwörter werden erst verschlüsselt (der Schlüssel dazu liegt in config.
 
 D.h. ein potenzieller Angriff muss unter dem entsprechendem Benutzer-Konto ausgeführt werden, um überhaupt an die Passwörter zu kommen und es benötigt eine gezielten Angriff auf dieses Skript um sie dann auch zu entschlüsseln, sie werden nicht in Klartext gespeichert.
 
-(Ich kann derzeit noch nicht ausschließen, dass sie nicht doch irgendwo in Logs der Konsole gespeichert werden, das überprüfe ich noch bei Gelegenheit)
+(Ich kann derzeit noch nicht ausschließen, dass sie nicht doch irgendwo in Logs der Konsole oder mancher Libraries gespeichert werden, das überprüfe ich noch bei Gelegenheit)
