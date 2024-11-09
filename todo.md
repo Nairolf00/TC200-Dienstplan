@@ -7,3 +7,4 @@
 - Ganze Abteilung hinzufügen können
 - Noch eine Option für bessere Verschlüsselung der Passwörter hinzufügen
 - GUI
+- Noch einmal Nachfragen, ob der gefundene Kalender tasächlich der richtige ist, anhand des Namens
