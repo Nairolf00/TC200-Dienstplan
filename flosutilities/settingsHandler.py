@@ -74,6 +74,14 @@ class settingsHandler():
                 if not key in self.configFromFile[section]:
                     configError = True
                     break
+                elif self.configStructure[section][key]["type"] == "password":
+                    try:
+                        passwordEncoded = keyring.get_password(self.configStructure[section][key]["keyringNamespace"], str(section)+"_"+str(key)).encode()
+                        encKey = self.configFromFile[section][key].encode()
+                        fernet = cryptography.fernet.Fernet(encKey)
+                        pw = fernet.decrypt(passwordEncoded).decode()
+                    except:
+                        configError = True
         return configError
     
 
@@ -118,10 +126,14 @@ class settingsHandler():
                         valueFromFile = self.configFromFile[section].getint(key)
                     elif self.configStructure[section][key]["type"] == "password":
                         # Passwörter werden erst verschlüsselt (der Schlüssel ist das was in der config.ini steht) und danach in den Windows Keyring gespeichert. (=> es benötigt eine gezielte Attake auf dieses Skript und diese muss mit dem Benutzer, der das Passwort gespeichert hat laufen)
-                        passwordEncoded = keyring.get_password(self.configStructure[section][key]["keyringNamespace"], str(section)+"_"+str(key)).encode()
-                        encKey = self.configFromFile[section][key].encode()
-                        fernet = cryptography.fernet.Fernet(encKey)
-                        valueFromFile = fernet.decrypt(passwordEncoded).decode()
+                        try:
+                            passwordEncoded = keyring.get_password(self.configStructure[section][key]["keyringNamespace"], str(section)+"_"+str(key)).encode()
+                            encKey = self.configFromFile[section][key].encode()
+                            fernet = cryptography.fernet.Fernet(encKey)
+                            valueFromFile = fernet.decrypt(passwordEncoded).decode()
+                        except:
+                            print("Fehler bei der Enntschlüsselung dieser Einstellung:", section, key)
+                            valueFromFile = ""
                     foundConfig[key] = valueFromFile
         self.currentConfig[section] = foundConfig
         return foundConfig
