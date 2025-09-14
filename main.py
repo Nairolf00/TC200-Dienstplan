@@ -14,7 +14,7 @@ import icalendar as iCal
 import traceback
 
 
-version = "0.2" # wird in den iCal Files angegeben
+version = "0.2.2" # wird in den iCal Files angegeben
 print("\n---- Flos TC200 zu iCal / CalDav, Version:", version, "----\n")
 
                 
@@ -22,7 +22,7 @@ print("\n---- Flos TC200 zu iCal / CalDav, Version:", version, "----\n")
 freiSchichten = ["X", "UT", "AG"]
 
 
-# Dies sind die erwarteten Einstellungen in dem config.ini file
+# Dies sind die in dem config.ini file erwarteten Einstellungen
 configStructure = {
     "VERHALTEN":{
         "eigenerName": {
@@ -226,7 +226,7 @@ print(erstelltStrs, "=>", erstelltDatetime, "=>", erstelltFormattestStr)
 # Geht durch alle Seiten durch und ließt den eigentlichen Teil des Planes ein
 contentTablesAll = []
 contentTablesFirst = []
-rowEigen = None
+rowEigen: pandas.DataFrame = None
 for x in range(inputPdfNumPages):
     print(x)
     contentTablesAll.append(tabula.read_pdf(inputPdfPath, pages=x+1, relative_area=True, area=[14.6695715323166, 0, 100, 100], output_format="dataframe", multiple_tables=False))
@@ -244,7 +244,7 @@ for x in range(inputPdfNumPages):
         if rowEigen:
             raise Exception("Auf zwei Seiten wurde der entsprechende Name gefunden!")
         rowEigen = rowFound
-    
+ 
 print("meine Zeile:\n", rowEigen)
 
 
@@ -286,7 +286,7 @@ while x < lenMonat:
         x+=y
             
     else: # Für alle Tage mit irgendeinem Inhalt
-        itemDay = itemDay.split("\r") # Splitet die Zeilen auf - Trennt Schichtname und Uhrzeiten
+        itemDay: list = itemDay.split("\r") # Splitet die Zeilen auf - Trennt Schichtname und Uhrzeiten
         print(str(x+1)+":", itemDay, " -  ", end='')
 
         # Sortiert Freischichten aus, gruppiert aufeinanderfolgende und Trägt "frei (Name der Schicht)" ein
@@ -311,7 +311,10 @@ while x < lenMonat:
             itemDay[1] = itemDay[1].split(":")
             itemDay[2] = itemDay[2].split(":")
             start = datetime.datetime(year,month,x+1,int(itemDay[1][0]), int(itemDay[1][1]))
-            end = datetime.datetime(year,month,x+1,int(itemDay[2][0]), int(itemDay[2][1]))
+            if int(itemDay[2][0]) == 24 and int(itemDay[2][1]) == 0:
+                end = datetime.datetime(year,month,x+1,0, 0)
+            else:
+                end = datetime.datetime(year,month,x+1,int(itemDay[2][0]), int(itemDay[2][1]))
             if end < start:
                 end += datetime.timedelta(days=1)
             print(itemDay)
