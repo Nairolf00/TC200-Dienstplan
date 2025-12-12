@@ -33,6 +33,7 @@ __ACHTUNG DAS SCRIPT LÖSCHT ALLE TERMINE IN DEM EINEM KALENDER! (für den Monat
 - Python 3.12 (andere Versionen sind ungetestet)
     - Die virtuelle Umgebung ist mit in dem Repo
 - Java
+- tkinter (kommt meist mit Python selbst, muss aber bei manchen Linux-Distros zusätzlich instaliert werden.)
 
 ## Passwort Sicherheit
 Die Passwörter werden erst verschlüsselt (der Schlüssel dazu liegt in config.ini) und danach im Keyring von Windwos gespeichert.
