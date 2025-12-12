@@ -5,7 +5,8 @@ __ACHTUNG DAS SCRIPT LÖSCHT ALLE TERMINE IN DEM EINEM KALENDER! (für den Monat
 
 # Verwendung
 1. Das Script ist in [Python 3 (getestet mit Version 3.12.0)](https://www.python.org/downloads/release/python-3126/) geschrieben und der Teil, der das PDF auswertet benötigt [JAVA](https://www.java.com/de/) -> beides muss vorab instaliert werden
-3. Unter Windows kann das Skript mit _run.bat_ ausgeführt werden, auf anderen Plattformen muss man händisch _main.py_ starten (Das funktioniert nur, wenn davor die virtuelle Python umgebung (VENV) aktiviert wurde) 
+2. Python benötigt etliche zusätliche Pakete, die mit `python -m pip install -r requirements.txt` installiert werden (ich empfehle stark die verwendung einer virtuelen Umgebung - venv)
+3. Unter Windows kann das Skript mit _run.bat_ ausgeführt werden, auf anderen Plattformen muss man händisch _main.py_ starten
 3. Bei erstmaliger Ausführung werden die gewünschten Einstellungen abgefragt. Manche Optionen bieten eine Auswahl an, die mit den Pfeiltasten selektiert werden können, mache sind Texteingaben
     - Der eigenen Name: Dieser wird verwendet, um die eigene Zeile im Dinstplan zu finden muss also genau so angegeben werden, wie er im PDF steht (vermutlich _Nachname, Vorname_), sollte das Ende abgeschnitten sein, so ist es auch hier unvollständig anzugeben
     - Soll das Hochladen mittels CalDAV aktiviert werden?: CalDAV ist ein Protokoll, mit dem Kalender bei manchen Anbietern hochgeladen werden können. Ist diese Option aktivert, müssen die entsprechenden Zugangsdaten angegeben werden, damit das Skript funktioniert.
@@ -34,6 +35,7 @@ __ACHTUNG DAS SCRIPT LÖSCHT ALLE TERMINE IN DEM EINEM KALENDER! (für den Monat
     - Die virtuelle Umgebung ist mit in dem Repo
 - Java
 - tkinter (kommt meist mit Python selbst, muss aber bei manchen Linux-Distros zusätzlich instaliert werden.)
+- Die Python-Paktet aus requirements.txt
 
 ## Passwort Sicherheit
 Die Passwörter werden erst verschlüsselt (der Schlüssel dazu liegt in config.ini) und danach im Keyring von Windwos gespeichert.
