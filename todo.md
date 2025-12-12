@@ -1,3 +1,4 @@
+- Bug, wenn im config File ein Secret noch nicht existiert / von einem femden System angelegt wurde (könnte daher kommen, dass der Eintrag im Passwortmanager nocht nicht existerit?) (Es fehlt, dass man die nicht nur neu angeben muss, wenn sie nicht existieren, sondern auch, wenn sie defekt sind.)
 - der FileDialog geht in vscode aus irgendeinem Gurnd nicht auf, wenn man davor in das Terminal klickt (z.B. wenn man die Einstellungen ändert, oder weil man bestätigt, dass man die Datei speichern möchte)
 - Nicht stumpf alle Termine löschen, sondern tasächlich die alten aktualisieren
 - direkt von TC 200 herunterladen
